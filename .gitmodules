@@ -1,0 +1,3 @@
+[submodule "minicoros"]
+	path = minicoros
+	url = https://github.com/peteb/minicoros.git
