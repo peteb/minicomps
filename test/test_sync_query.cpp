@@ -22,6 +22,10 @@ using namespace mc;
 DECLARE_QUERY(Sum, int(int, int));
 DECLARE_QUERY(Print, void(int));
 
+namespace my_messages {
+  DECLARE_QUERY(Sum, int(int t1, int t2, int t3));
+}
+
 namespace {
 
 class recv_component : public component_base<recv_component> {
@@ -34,6 +38,11 @@ public:
     publish_sync_query<Sum>([this](int t1, int t2) {
       called = true;
       return t1 + t2;
+    });
+
+    publish_sync_query<my_messages::Sum>([this](int t1, int t2, int t3) {
+      called = true;
+      return t1 + t2 + t3;
     });
 
     publish_sync_query<Print>([this](int val) {
@@ -50,10 +59,12 @@ public:
   send_component(broker& broker, executor_ptr executor)
     : component_base("sender", broker, executor)
     , sum(lookup_sync_query<Sum>())
+    , namespaced_sum(lookup_sync_query<my_messages::Sum>())
     , print(lookup_sync_query<Print>())
     {}
 
   sync_query<Sum> sum;
+  sync_query<my_messages::Sum> namespaced_sum;
   sync_query<Print> print;
 };
 
@@ -140,6 +151,22 @@ TEST(sync_query, can_invoke_function_returning_void) {
 
   // Then
   ASSERT_EQ(receiver->print_called_with, 123);
+}
+
+TEST(sync_query, can_invoke_namespaced_query) {
+  // Given
+  broker broker;
+  executor_ptr exec = std::make_shared<executor>();
+  component_registry registry;
+  auto sender = registry.create<send_component>(broker, exec);
+  auto receiver = registry.create<recv_component>(broker, exec);
+
+  // When
+  int result = sender->namespaced_sum(1, 2, 3);
+
+  // Then
+  ASSERT_EQ(result, 6);
+  ASSERT_EQ(receiver->called, true);
 }
 // TODO: test for calling a function that returns a coroutine
 

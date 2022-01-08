@@ -1,5 +1,4 @@
 * Split DECLARE_QUERY and make it work for shared libraries
-* Make message declarations work with namespaces
 * Async queries need to copy their arguments/decay
 
 * Events

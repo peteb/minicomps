@@ -66,6 +66,35 @@ private:
 };
 ```
 
+### Namespaced queries
+```cpp
+namespace math {
+DECLARE_QUERY(Sum, int(int t1, int t2));
+}
+
+namespace output {
+DECLARE_QUERY(PrintValue, void(int));
+}
+
+class calculator : public component_base<calculator> {
+public:
+  calculator(broker& broker, executor_ptr executor)
+    : component_base("calculator", broker, executor)
+    , print_value_(lookup_async_query(output::PrintValue))
+    {}
+
+  virtual void publish() override {
+    publish_async_query<math::Sum>([this](int t1, int t2, mc::callback_result<int>&& result) {
+      print_value_(t1 + t2);
+      result(t1 + t2);
+    });
+  }
+
+private:
+  async_query<output::PrintValue> print_value_;
+};
+```
+
 ## Limitations and trade-offs
 - Setting up and tearing down components isn't important from a performance perspective. Ie; it's OK to allocate many objects and take big locks.
 - Sync queries should be decently fast, at least 100k calls per millisecond.

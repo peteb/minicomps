@@ -3,9 +3,11 @@
 #ifndef MINICOMPS_MESSAGING_H_
 #define MINICOMPS_MESSAGING_H_
 
+#include <minicomps/executor.h>
+
 #include <cstdint>
 #include <functional>
-#include <minicomps/executor.h>
+#include <utility>
 
 namespace mc {
 
@@ -73,22 +75,22 @@ public:
   std::function<converted_signature> handler;
 };
 
-
 template<typename MessageType>
-class query_info {};
+using query_info = decltype(get_query_info(std::declval<MessageType>()));
 
 }
 
 #define DECLARE_QUERY(name, type)                                                           \
-  class name;                                                                               \
-  template<> class query_info<name> {                                                       \
+  class name {};                                                                            \
+  class query_info_##name {                                                                 \
   public:                                                                                   \
     using handler_wrapper_type = message_handler_impl<type>;                                \
     using handler_type = decltype(handler_wrapper_type{}.handler);                          \
     using async_handler_wrapper_type = message_handler_async_impl<type>;                    \
     using async_handler_type = decltype(async_handler_wrapper_type{}.handler);              \
     using signature = type;                                                                 \
-  };
+  };                                                                                        \
+  query_info_##name get_query_info(name);
 
 
 #endif // MINICOMPS_MESSAGING_H_
