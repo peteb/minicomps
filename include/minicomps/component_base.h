@@ -10,7 +10,9 @@
 #include <minicomps/executor.h>
 #include <minicomps/sync_query.h>
 #include <minicomps/async_query.h>
+#include <minicomps/async_event.h>
 #include <minicomps/mono_ref.h>
+#include <minicomps/poly_ref.h>
 
 #include <cstdint>
 #include <iostream>
@@ -51,7 +53,7 @@ public:
     broker_.associate(msgId, shared_from_this());
 
     using wrapper_type = typename query_info<MessageType>::handler_wrapper_type;
-    query_sync_handlers_[msgId] = std::make_shared<wrapper_type>(std::move(handler));
+    sync_handlers_[msgId] = std::make_shared<wrapper_type>(std::move(handler));
     // TODO: remove from queryHandlers
   }
 
@@ -61,7 +63,17 @@ public:
     broker_.associate(msgId, shared_from_this());
 
     using async_wrapper_type = typename query_info<MessageType>::async_handler_wrapper_type;
-    query_async_handlers_[msgId] = std::make_shared<async_wrapper_type>(std::move(handler));
+    async_handlers_[msgId] = std::make_shared<async_wrapper_type>(std::move(handler));
+    // TODO: remove from queryHandlers
+  }
+
+  template<typename MessageType, typename CallbackType>
+  void publish_async_event_listener(CallbackType&& handler) {
+    const message_id msgId = get_message_id<MessageType>();
+    broker_.associate(msgId, shared_from_this());
+
+    using handler_type = decltype(message_handler_event_impl<MessageType>{}.handler);
+    async_handlers_[msgId] = std::make_shared<message_handler_event_impl<MessageType>>(std::move(handler));
     // TODO: remove from queryHandlers
   }
 
@@ -79,17 +91,24 @@ public:
     return async_query<MessageType>(handler_ref.get(), executor);
   };
 
+  template<typename MessageType>
+  async_event<MessageType> lookup_async_event() {
+    auto handler_ref = std::make_shared<poly_ref_base<MessageType>>(broker_, *this);
+    poly_refs_.push_back(handler_ref);
+    return async_event<MessageType>(handler_ref.get());
+  };
+
   virtual void* lookup_sync_handler(message_id msgId) override {
-    auto iter = query_sync_handlers_.find(msgId);
-    if (iter == std::end(query_sync_handlers_))
+    auto iter = sync_handlers_.find(msgId);
+    if (iter == std::end(sync_handlers_))
       return nullptr;
 
     return iter->second->get_handler_ptr();
   }
 
   virtual void* lookup_async_handler(message_id msgId) override {
-    auto iter = query_async_handlers_.find(msgId);
-    if (iter == std::end(query_async_handlers_))
+    auto iter = async_handlers_.find(msgId);
+    if (iter == std::end(async_handlers_))
       return nullptr;
 
     return iter->second->get_handler_ptr();
@@ -97,10 +116,11 @@ public:
 
 private:
   broker& broker_;
-  std::unordered_map<message_id, std::shared_ptr<message_handler>> query_sync_handlers_;
-  std::unordered_map<message_id, std::shared_ptr<message_handler>> query_async_handlers_;
+  std::unordered_map<message_id, std::shared_ptr<message_handler>> sync_handlers_;
+  std::unordered_map<message_id, std::shared_ptr<message_handler>> async_handlers_;
 
   std::vector<std::shared_ptr<mono_ref>> mono_refs_; // Reset shared_ptrs in mono_refs to avoid memory leaks at shutdown
+  std::vector<std::shared_ptr<poly_ref>> poly_refs_; // ... and in poly_refs
   bool published_ = false;
 };
 

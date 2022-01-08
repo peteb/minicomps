@@ -1,10 +1,12 @@
-* Async queries need to copy their arguments/decay
+* Async queries and events need to copy their arguments/decay
 
-* Events
 * Async query filter function
 * Mutable responses (responses containing ptrs/refs)
 * Bind queries to memfuns
 
+* Tests that enforce number of allocations
+* Should we expose async/sync queries? What should the default be? What about async/sync events?
+* Well-defined behavior when components are removed in the middle of a call
 * any_unaligned_storage should fall back to heap allocated if needed
 * Minicoros support
 * Call sync queries using async

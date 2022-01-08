@@ -11,7 +11,7 @@ int main() {
   testing::test_system::instance().run_suites();
 }
 
-#define DISABLE_ALLOC_DEBUG
+//#define DISABLE_ALLOC_DEBUG
 
 #ifndef DISABLE_ALLOC_DEBUG
 

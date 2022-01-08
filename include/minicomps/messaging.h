@@ -74,12 +74,36 @@ public:
   std::function<converted_signature> handler;
 };
 
+template<typename EventType>
+class message_handler_event_impl : public message_handler {
+public:
+  message_handler_event_impl() = default;
+
+  template<typename T>
+  message_handler_event_impl(T&& handler) : handler(std::move(handler)) {}
+
+  virtual void* get_handler_ptr() override {
+    return &handler;
+  }
+
+  std::function<void(const EventType&)> handler;
+};
+
 template<typename MessageType>
 using query_info = decltype(get_query_info(std::declval<MessageType>()));
 
 }
 
-#define QUERY_DECLARATION  // dllexport/dllimport
+#define MESSAGE_API  // dllexport/dllimport
+
+#define MESSAGE_DECLARATION(name)                                                           \
+  MESSAGE_API message_id get_message_id(name*);
+
+#define MESSAGE_DEFINITION(name)                                                            \
+  message_id get_message_id(name*) {                                                        \
+    static int uniq;                                                                        \
+    return message_id{reinterpret_cast<uintptr_t>(&uniq)};                                  \
+  }
 
 #define DECLARE_QUERY(name, type)                                                           \
   class name {};                                                                            \
@@ -92,12 +116,15 @@ using query_info = decltype(get_query_info(std::declval<MessageType>()));
     using signature = type;                                                                 \
   };                                                                                        \
   query_info_##name get_query_info(name);                                                   \
-  QUERY_DECLARATION message_id get_message_id(name*);
+  MESSAGE_DECLARATION(name)
 
-#define DEFINE_QUERY(name)                                                                  \
-  message_id get_message_id(name*) {                                                        \
-    static int uniq;                                                                        \
-    return message_id{reinterpret_cast<uintptr_t>(&uniq)};                                  \
-  }
+#define DEFINE_QUERY(name) MESSAGE_DEFINITION(name)
+
+#define DECLARE_EVENT(name, type)                                                           \
+  struct name type;                                                                         \
+  MESSAGE_DECLARATION(name)
+
+#define DEFINE_EVENT(name) MESSAGE_DEFINITION(name)
+
 
 #endif // MINICOMPS_MESSAGING_H_
