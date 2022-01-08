@@ -1,11 +1,13 @@
 # minicomps
 
-**`Minicomps` is a C++17 library that implements a framework for sync and async communication between "components"**. It supports the following features:
+**`Minicomps` is a C++17 framework for synchronous and asynchronous communication between components**. It supports the following features:
 
-- **Name-based function lookup** for loose coupling
-- **Zero memory allocation** for queries
+- **Queries** for calling into other components to get a result or return value
+- **Events** for raising events that have happened and for disseminating data
+- Components are **decentralized and loosely coupled** due to name-based function lookup
+- Queries and events do **no memory allocations**
 - **Automatic locking** on component level for synchronous queries
-- All calls are **always thread safe** (unless explicitly overridden by the user)
+- All actions are **thread safe** (unless explicitly overridden by the user)
 - Periodical pumping and async operations can be skipped if the handling component has been synchronously locked (TODO)
 - Aspect-oriented support for async invocations (can be used to inject errors, collect request duration, logging, testing, etc) (TODO)
 - Startup dependency verification (TODO)
