@@ -20,10 +20,10 @@
 using namespace testing;
 using namespace mc;
 
-DECLARE_QUERY(Sum, int(int t1, int t2));
-DECLARE_QUERY(UpdateValues, int(int new_value));
-
 namespace {
+
+DECLARE_QUERY(Sum, int(int t1, int t2)); DEFINE_QUERY(Sum);
+DECLARE_QUERY(UpdateValues, int(int new_value)); DEFINE_QUERY(UpdateValues);
 
 class recv_component : public component_base<recv_component> {
 public:

@@ -20,8 +20,8 @@
 using namespace testing;
 using namespace mc;
 
-DECLARE_QUERY(Sum, int(int t1, int t2));
-DECLARE_QUERY(UpdateValues, int(int new_value));
+DECLARE_QUERY(Sum, int(int t1, int t2)); DEFINE_QUERY(Sum);
+DECLARE_QUERY(UpdateValues, int(int new_value)); DEFINE_QUERY(UpdateValues);
 
 // TODO: Can only register one type for a message id due to the "number of receivers" check in mono_refs
 

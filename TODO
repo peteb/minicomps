@@ -1,4 +1,3 @@
-* Split DECLARE_QUERY and make it work for shared libraries
 * Async queries need to copy their arguments/decay
 
 * Events

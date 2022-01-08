@@ -14,8 +14,10 @@
 
 ## Examples
 ```cpp
-DECLARE_QUERY(Sum, int(int t1, int t2));
-DECLARE_QUERY(UpdateValues, int(int new_value));
+// Queries, like ordinary functions, have two parts: a declaration and a definition.
+// This separation makes it possible to call queries across shared libraries.
+DECLARE_QUERY(Sum, int(int t1, int t2)); DEFINE_QUERY(Sum);
+DECLARE_QUERY(UpdateValues, int(int new_value)); DEFINE_QUERY(UpdateValues);
 
 class receiver : public component_base<receiver> {
 public:
@@ -69,11 +71,11 @@ private:
 ### Namespaced queries
 ```cpp
 namespace math {
-DECLARE_QUERY(Sum, int(int t1, int t2));
+DECLARE_QUERY(Sum, int(int t1, int t2)); DEFINE_QUERY(Sum);
 }
 
 namespace output {
-DECLARE_QUERY(PrintValue, void(int));
+DECLARE_QUERY(PrintValue, void(int)); DEFINE_QUERY(Sum);
 }
 
 class calculator : public component_base<calculator> {
@@ -103,7 +105,7 @@ private:
 - Async queries can only lock the executor.
 
 ## Performance
-As measured using Docker on my MacBook Pro from 2013. Might not be up-to-date, but shows ballpark figures.
+As measured on my MacBook Pro from 2013 through Docker. Might not be up-to-date, but shows ballpark figures.
 
 | Operation                                                 | Rate       | Allocs/query |
 |-----------------------------------------------------------|-----------:|--------------|

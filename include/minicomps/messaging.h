@@ -20,8 +20,7 @@ public:
 
 template<typename MessageType>
 message_id get_message_id() {
-  static int uniq;
-  return message_id{reinterpret_cast<uintptr_t>(&uniq)};
+  return get_message_id(static_cast<MessageType*>(nullptr));
 }
 
 template<typename T>
@@ -80,6 +79,8 @@ using query_info = decltype(get_query_info(std::declval<MessageType>()));
 
 }
 
+#define QUERY_DECLARATION  // dllexport/dllimport
+
 #define DECLARE_QUERY(name, type)                                                           \
   class name {};                                                                            \
   class query_info_##name {                                                                 \
@@ -90,7 +91,13 @@ using query_info = decltype(get_query_info(std::declval<MessageType>()));
     using async_handler_type = decltype(async_handler_wrapper_type{}.handler);              \
     using signature = type;                                                                 \
   };                                                                                        \
-  query_info_##name get_query_info(name);
+  query_info_##name get_query_info(name);                                                   \
+  QUERY_DECLARATION message_id get_message_id(name*);
 
+#define DEFINE_QUERY(name)                                                                  \
+  message_id get_message_id(name*) {                                                        \
+    static int uniq;                                                                        \
+    return message_id{reinterpret_cast<uintptr_t>(&uniq)};                                  \
+  }
 
 #endif // MINICOMPS_MESSAGING_H_

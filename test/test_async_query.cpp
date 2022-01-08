@@ -15,10 +15,10 @@
 using namespace testing;
 using namespace mc;
 
-DECLARE_QUERY(Sum, int(int, int));
-DECLARE_QUERY(Print, void(int));
-
 namespace {
+
+DECLARE_QUERY(Sum, int(int, int)); DEFINE_QUERY(Sum);
+DECLARE_QUERY(Print, void(int)); DEFINE_QUERY(Print);
 
 class recv_component : public component_base<recv_component> {
 public:

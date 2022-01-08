@@ -19,11 +19,12 @@
 using namespace testing;
 using namespace mc;
 
-DECLARE_QUERY(Sum, int(int, int));
-DECLARE_QUERY(Print, void(int));
+namespace {
+DECLARE_QUERY(Sum, int(int, int)); DEFINE_QUERY(Sum);
+DECLARE_QUERY(Print, void(int)); DEFINE_QUERY(Print);
 
 namespace my_messages {
-  DECLARE_QUERY(Sum, int(int t1, int t2, int t3));
+DECLARE_QUERY(Sum, int(int t1, int t2, int t3)); DEFINE_QUERY(Sum);
 }
 
 namespace {
@@ -170,4 +171,5 @@ TEST(sync_query, can_invoke_namespaced_query) {
 }
 // TODO: test for calling a function that returns a coroutine
 
+}
 }
