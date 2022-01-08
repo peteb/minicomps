@@ -80,12 +80,11 @@ TEST(async_event_perf, same_executor) {
   measure_with_allocs([&] {
     for (int i = 0; i <= 10000000; ++i) {
       sender->summation_finished({i});
-      exec->execute();
     }
   });
 
   ASSERT_TRUE(sender->receiver_finished);
-  // 454 ms on my computer = 22 000 000/s
+  // 83 ms on my computer = 120 481 000/s
 }
 
 TEST(async_event_perf, spsc_one_consumer_two_threads) {

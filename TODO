@@ -4,6 +4,7 @@
 * Mutable responses (responses containing ptrs/refs)
 * Bind queries to memfuns
 
+* Improve executor performance
 * Tests that enforce number of allocations
 * Should we expose async/sync queries? What should the default be? What about async/sync events?
 * Well-defined behavior when components are removed in the middle of a call
