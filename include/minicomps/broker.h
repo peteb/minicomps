@@ -24,6 +24,7 @@ class broker {
 public:
   void associate(message_id, std::weak_ptr<component>);
   void disassociate(message_id, component*);
+  void invalidate(message_id);
   void disassociate_everything(component*);
 
   /// Returns an immutable list of weak_ptrs to all the components that are

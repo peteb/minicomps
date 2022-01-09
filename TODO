@@ -1,13 +1,13 @@
 * Async queries and events need to copy their arguments/decay
-* Mocks/Spies
-* Error injectors, trace log
+* Trace logging, statistics gathering
 
-* Try out https://github.com/cameron314/readerwriterqueue
 * Async query filter function
 * Mutable responses (responses containing ptrs/refs)
 * Bind queries to memfuns
+* Reflection for dependencies
 
 * Improve executor performance
+* Try out https://github.com/cameron314/readerwriterqueue
 * Tests that enforce number of allocations
 * Should we expose async/sync queries? What should the default be? What about async/sync events?
 * Well-defined behavior when components are removed in the middle of a call

@@ -8,8 +8,9 @@
 - Queries and events do **no memory allocations**
 - **Automatic locking** on component level for synchronous queries
 - All actions are **thread safe** (unless explicitly overridden by the user)
+- Filter handlers for async queries (can be used for mocks, spies, error injection, etc)
 - Periodical pumping and async operations can be skipped if the handling component has been synchronously locked (TODO)
-- Aspect-oriented support for async invocations (can be used to inject errors, collect request duration, logging, testing, etc) (TODO)
+- Aspect-oriented support for async invocations (can be used to collect request duration, logging, etc) (TODO)
 - Startup dependency verification (TODO)
 - Async function invocation using "minicoros" (a library that simplifies futures/promises) (TODO)
 - Dependency reflection (can be used to enforce interaction policies, generate dependency graphs, etc) (TODO)

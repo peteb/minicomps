@@ -119,7 +119,7 @@ TEST(async_event_perf, spsc_one_consumer_two_threads) {
   sender_thread.join();
   receiver_thread.join();
 
-  // 3105 ms on my computer = 3 225 000/s
+  // 2054 ms on my computer = 4 868 000/s
 }
 
 }

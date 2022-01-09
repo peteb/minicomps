@@ -72,6 +72,17 @@ public:
       }
     }
 
+    template<typename OuterResultType, typename CallbackType>
+    void with_successful_callback(OuterResultType&& outer_result, CallbackType&& callback) {
+      with_callback([outer_result = std::move(outer_result), callback = std::move(callback)](mc::concrete_result<result_type>&& inner_result) mutable {
+        if (!inner_result.success()) {
+          outer_result(std::move(*inner_result.get_failure()));
+          return;
+        }
+
+        callback(*inner_result.get_value(), std::move(outer_result));
+      });
+    }
   private:
     async_query& async_query_;
     std::tuple<ArgumentTypes...> arguments_;

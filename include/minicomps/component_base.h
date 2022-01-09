@@ -47,33 +47,57 @@ public:
     published_ = false;
   }
 
-  template<typename MessageType, typename CallbackType> // typename query_info<MessageType>::HandlerType
+  template<typename MessageType, typename CallbackType>
   void publish_sync_query(CallbackType&& handler) {
-    const message_id msgId = get_message_id<MessageType>();
-    broker_.associate(msgId, shared_from_this());
+    const message_id msg_id = get_message_id<MessageType>();
+    broker_.associate(msg_id, shared_from_this());
 
     using wrapper_type = typename query_info<MessageType>::handler_wrapper_type;
-    sync_handlers_[msgId] = std::make_shared<wrapper_type>(std::move(handler));
+    sync_handlers_[msg_id] = std::make_shared<wrapper_type>(std::move(handler));
     // TODO: remove from queryHandlers
   }
 
-  template<typename MessageType, typename CallbackType> // typename query_info<MessageType>::HandlerType
+  template<typename MessageType, typename CallbackType>
   void publish_async_query(CallbackType&& handler) {
-    const message_id msgId = get_message_id<MessageType>();
-    broker_.associate(msgId, shared_from_this());
+    const message_id msg_id = get_message_id<MessageType>();
+    broker_.associate(msg_id, shared_from_this());
 
     using async_wrapper_type = typename query_info<MessageType>::async_handler_wrapper_type;
-    async_handlers_[msgId] = std::make_shared<async_wrapper_type>(std::move(handler));
+    async_handlers_[msg_id] = std::make_shared<async_wrapper_type>(std::move(handler));
+    // TODO: remove from queryHandlers
+  }
+
+  template<typename MessageType, typename CallbackType>
+  void prepend_async_query_filter(CallbackType&& handler) {
+    const message_id msg_id = get_message_id<MessageType>();
+    using async_wrapper_type = typename query_info<MessageType>::async_handler_wrapper_type;
+    using async_handler_type = typename query_info<MessageType>::async_handler_type;
+
+    if (async_handlers_.find(msg_id) == std::end(async_handlers_))
+      std::abort();
+
+    auto previous_handler = std::move(async_handlers_[msg_id]);
+
+    async_handlers_[msg_id] = std::make_shared<async_wrapper_type>([handler = std::move(handler), previous_handler = std::move(previous_handler)] (auto&&... args) mutable {
+      bool proceed = true;
+      handler(proceed, std::move(args)...);
+      if (proceed)
+        (*static_cast<async_handler_type*>(previous_handler->get_handler_ptr()))(std::move(args)...);
+    });
+
+    // Existing references will have to be updated since we've updated the handler pointer
+    broker_.invalidate(msg_id);
+
     // TODO: remove from queryHandlers
   }
 
   template<typename MessageType, typename CallbackType>
   void publish_async_event_listener(CallbackType&& handler) {
-    const message_id msgId = get_message_id<MessageType>();
-    broker_.associate(msgId, shared_from_this());
+    const message_id msg_id = get_message_id<MessageType>();
+    broker_.associate(msg_id, shared_from_this());
 
     using handler_type = decltype(message_handler_event_impl<MessageType>{}.handler);
-    async_handlers_[msgId] = std::make_shared<message_handler_event_impl<MessageType>>(std::move(handler));
+    async_handlers_[msg_id] = std::make_shared<message_handler_event_impl<MessageType>>(std::move(handler));
     // TODO: remove from queryHandlers
   }
 
