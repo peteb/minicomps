@@ -132,7 +132,7 @@ TEST(async_query_perf, simple_different_executor_same_thread) {
     }
   });
 
-  // 1020 ms on my computer, = 1 960 000/s
+  // 521 ms on my computer, = 3 838 000/s
 }
 
 TEST(async_query_perf, spsc_mt_one_producer) {
@@ -165,7 +165,7 @@ TEST(async_query_perf, spsc_mt_one_producer) {
 
   receiver->done = true;
   receiver_thread.join();
-  // 3357 ms on my computer, =595/ms
+  // 700 ms on my computer, = 2 857 000/s
 }
 
 TEST(async_query_perf, mpsc_mt_three_producers) {

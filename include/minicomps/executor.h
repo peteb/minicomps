@@ -9,25 +9,37 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <chrono>
+#include <atomic>
 
 namespace mc {
 
 /// A work queue.
 class executor {
 public:
+  executor() {}
+
   template<typename CallbackType, typename DataType>
   void enqueue_work(CallbackType&& item, DataType&& data) {
-    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    if (!mutex_.try_lock()) {
+      ++num_lock_failures_;
+      mutex_.lock();
+    }
+
     task& work_item = work_items_.emplace_back();
     work_item.fun = std::move(item);
     work_item.data = std::move(data);
+    mutex_.unlock();
   }
 
   void execute() {
-    {
-      std::lock_guard<std::recursive_mutex> lock(mutex_);
-      std::swap(work_items_, work_items_back_buffer_);
+    if (!mutex_.try_lock()) {
+      ++num_lock_failures_;
+      mutex_.lock();
     }
+
+    std::swap(work_items_, work_items_back_buffer_);
+    mutex_.unlock();
 
     for (auto& item : work_items_back_buffer_)
       item.execute();
@@ -35,7 +47,13 @@ public:
     work_items_back_buffer_.clear();
   }
 
+  static int num_lock_failures() {
+    return num_lock_failures_;
+  }
+
 private:
+  static std::atomic_int num_lock_failures_;
+
   struct task {
     any_aligned_storage<64> data;
     std::function<void(void*)> fun;
@@ -47,7 +65,8 @@ private:
 
   std::vector<task> work_items_;
   std::vector<task> work_items_back_buffer_;
-  std::recursive_mutex mutex_;
+  std::chrono::steady_clock::time_point last_execute_;
+  std::mutex mutex_;
 };
 
 using executor_ptr = std::shared_ptr<executor>;

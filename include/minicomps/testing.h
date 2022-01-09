@@ -3,6 +3,8 @@
 #ifndef MINICOMPS_TESTING_H
 #define MINICOMPS_TESTING_H
 
+#include <minicomps/executor.h>
+
 #include <memory>
 #include <vector>
 #include <iostream>
@@ -48,11 +50,13 @@ template<typename CallbackType>
 int measure_with_allocs(CallbackType&& callback) {
   testing::alloc_counter counter;
   std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+  int executor_lock_failures_start = executor::num_lock_failures();
+
   callback();
   std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
   int duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
-  std::cout << "Duration: " << duration << " ms, " << counter.total_allocation_count() << " allocs" << std::endl;
+  std::cout << "Duration: " << duration << " ms, " << counter.total_allocation_count() << " allocs, " << executor::num_lock_failures() - executor_lock_failures_start << " executor lock failures" << std::endl;
   return duration;
 }
 

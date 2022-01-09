@@ -1,5 +1,8 @@
 * Async queries and events need to copy their arguments/decay
+* Mocks/Spies
+* Error injectors, trace log
 
+* Try out https://github.com/cameron314/readerwriterqueue
 * Async query filter function
 * Mutable responses (responses containing ptrs/refs)
 * Bind queries to memfuns
