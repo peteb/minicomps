@@ -32,15 +32,17 @@ public:
     {}
 
   virtual void publish() override {
-    publish_sync_query<Sum>([](int t1, int t2) {
-      return t1 + t2;
-    });
+    publish_sync_query<Sum>(&recv_component::sum);
 
     publish_sync_query<UpdateValues>([this] (int new_value) {
       value1 = new_value;
       value2 = new_value;
       return value1 - value2;
     });
+  }
+
+  int sum(int t1, int t2) {
+    return t1 + t2;
   }
 
   volatile int value1 = 0;
@@ -89,9 +91,13 @@ TEST(sync_query_perf, simple_same_executor_call) {
 
   c2->precache();
 
+  alloc_counter ac;
+
   measure_with_allocs([c2] {
     c2->spam();
   });
+
+  ASSERT_EQ(ac.total_allocation_count(), 0);
 
   // 7017 ms on my computer, = 142 511 000/s
 }
@@ -105,12 +111,15 @@ TEST(sync_query_perf, simple_different_executor_call) {
   auto c1 = registry.create<recv_component>(broker, exec1);
   auto c2 = registry.create<send_component>(broker, exec2);
 
+  alloc_counter ac;
+
   c2->precache();
 
   measure_with_allocs([c2] {
     c2->spam();
   });
 
+  ASSERT_EQ(ac.total_allocation_count(), 0);
   // 34742 ms on my computer, = 28 784 000/s
 }
 
@@ -130,13 +139,20 @@ TEST(sync_query_perf, spsc_multithreading_seems_to_work) {
   // When/Then
   auto sender1 = registry.create<send_component>(broker, exec1);
 
-  std::thread t1([sender1] {
+  int allocs = 0;
+
+  std::thread t1([sender1, &allocs] {
+    alloc_counter ac;
     measure_with_allocs([&] {
       sender1->spam_updates();
     });
+    allocs = ac.total_allocation_count();
   });
 
   t1.join();
+
+  ASSERT_EQ(allocs, 0);
+
   // 351 ms = 28 490 000/s
 }
 

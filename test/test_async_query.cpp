@@ -32,10 +32,12 @@ public:
       return result(t1 + t2);
     });
 
-    publish_async_query<Print>([this](int val, callback_result<void>&& result) {
-      print_called_with = val;
-      return result({});
-    });
+    publish_async_query<Print>(&recv_component::print);
+  }
+
+  void print(int val, callback_result<void>&& result) {
+    print_called_with = val;
+    result({});
   }
 
   bool called = false;

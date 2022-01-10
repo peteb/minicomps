@@ -48,7 +48,6 @@ public:
 
       if (async_query_.handler_->mutual_executor()) {
         callback_result result_handler{nullptr, std::move(callback)};
-        //(*handler)(std::forward<Args>(arguments)..., std::move(result_handler));
         std::apply(*handler, std::tuple_cat(std::move(arguments_), std::make_tuple(std::move(result_handler))));
       }
       else {

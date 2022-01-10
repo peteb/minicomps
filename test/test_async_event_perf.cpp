@@ -37,9 +37,11 @@ public:
     {}
 
   virtual void publish() {
-    publish_async_event_listener<ReceiverFinished>([this] (const ReceiverFinished&) {
-      receiver_finished = true;
-    });
+    publish_async_event_listener<ReceiverFinished>(&send_component::on_receiver_finished);
+  }
+
+  void on_receiver_finished(const ReceiverFinished&) {
+    receiver_finished = true;
   }
 
   bool receiver_finished = false;

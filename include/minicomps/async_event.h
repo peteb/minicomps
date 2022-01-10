@@ -18,7 +18,6 @@ public:
   void operator() (MessageType&& event) {
     for (auto& receiver_handler : handler_->lookup()) {
       if (receiver_handler.mutual_executor()) {
-        // TODO: do we want this shortcut?
         receiver_handler.invoke(event);
       }
       else {

@@ -34,15 +34,18 @@ public:
     {}
 
   virtual void publish() override {
-    publish_async_query<Sum>([](int t1, int t2, callback_result<int>&& result) {
-      result(t1 + t2);
-    });
+    publish_async_query<Sum>(&recv_component::sum);
+    publish_async_query<UpdateValues>(&recv_component::update_values);
+  }
 
-    publish_async_query<UpdateValues>([this] (int new_value, callback_result<int>&& result) {
-      value1 = new_value;
-      value2 = new_value;
-      result(value1 - value2);
-    });
+  void sum(int t1, int t2, callback_result<int>&& result) {
+    result(t1 + t2);
+  }
+
+  void update_values(int new_value, callback_result<int>&& result) {
+    value1 = new_value;
+    value2 = new_value;
+    result(value1 - value2);
   }
 
   int value1 = 0;
@@ -67,7 +70,7 @@ public:
   }
 
   void send_update(int value) {
-    if (send_count_ > 2000000)
+    if (send_count_ > 2000001)
       return;
 
     send_count_++;

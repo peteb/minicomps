@@ -36,19 +36,23 @@ public:
     {}
 
   virtual void publish() override {
-    publish_sync_query<Sum>([this](int t1, int t2) {
-      called = true;
-      return t1 + t2;
-    });
+    publish_sync_query<Sum>(&recv_component::sum);
+    publish_sync_query<my_messages::Sum>(&recv_component::my_messages_sum);
+    publish_sync_query<Print>(&recv_component::print);
+  }
 
-    publish_sync_query<my_messages::Sum>([this](int t1, int t2, int t3) {
-      called = true;
-      return t1 + t2 + t3;
-    });
+  int sum(int t1, int t2) {
+    called = true;
+    return t1 + t2;
+  }
 
-    publish_sync_query<Print>([this](int val) {
-      print_called_with = val;
-    });
+  int my_messages_sum(int t1, int t2, int t3) {
+    called = true;
+    return t1 + t2 + t3;
+  }
+
+  void print(int val) {
+    print_called_with = val;
   }
 
   bool called = false;
@@ -169,7 +173,9 @@ TEST(sync_query, can_invoke_namespaced_query) {
   ASSERT_EQ(result, 6);
   ASSERT_EQ(receiver->called, true);
 }
+
 // TODO: test for calling a function that returns a coroutine
+// TODO: test argument copies, references
 
 }
 }

@@ -47,6 +47,7 @@ public:
     published_ = false;
   }
 
+  /// Publishes a callable as a synchronous query
   template<typename MessageType, typename CallbackType>
   void publish_sync_query(CallbackType&& handler) {
     const message_id msg_id = get_message_id<MessageType>();
@@ -57,6 +58,15 @@ public:
     // TODO: remove from queryHandlers
   }
 
+  /// Publishes a member function as a synchronous query
+  template<typename MessageType, typename ReturnType, typename... ArgumentTypes>
+  void publish_sync_query(ReturnType(SubclassType::*memfun)(ArgumentTypes...)) {
+    publish_sync_query<MessageType>([this, memfun] (ArgumentTypes&&... arguments) {
+      return (static_cast<SubclassType*>(this)->*memfun)(arguments...);
+    });
+  }
+
+  /// Publishes a callable as an asynchronous query
   template<typename MessageType, typename CallbackType>
   void publish_async_query(CallbackType&& handler) {
     const message_id msg_id = get_message_id<MessageType>();
@@ -67,6 +77,16 @@ public:
     // TODO: remove from queryHandlers
   }
 
+  /// Publishes a member function as an asynchronous query
+  template<typename MessageType, typename... ArgumentTypes>
+  void publish_async_query(void(SubclassType::*memfun)(ArgumentTypes...)) {
+    publish_async_query<MessageType>([this, memfun] (ArgumentTypes&&... arguments) {
+      (static_cast<SubclassType*>(this)->*memfun)(std::forward<ArgumentTypes>(arguments)...);
+    });
+  }
+
+  /// Adds a handler "on top" of an existing handler. Decides whether the next
+  /// handler should run or not.
   template<typename MessageType, typename CallbackType>
   void prepend_async_query_filter(CallbackType&& handler) {
     const message_id msg_id = get_message_id<MessageType>();
@@ -91,6 +111,7 @@ public:
     // TODO: remove from queryHandlers
   }
 
+  /// Publishes a callable as an event listener for asynchronous events.
   template<typename MessageType, typename CallbackType>
   void publish_async_event_listener(CallbackType&& handler) {
     const message_id msg_id = get_message_id<MessageType>();
@@ -99,6 +120,14 @@ public:
     using handler_type = decltype(message_handler_event_impl<MessageType>{}.handler);
     async_handlers_[msg_id] = std::make_shared<message_handler_event_impl<MessageType>>(std::move(handler));
     // TODO: remove from queryHandlers
+  }
+
+  /// Publishes a member function as an event listener for asynchronous events.
+  template<typename MessageType>
+  void publish_async_event_listener(void(SubclassType::*memfun)(const MessageType& message)) {
+    publish_async_event_listener<MessageType>([this, memfun] (const MessageType& message) {
+      (static_cast<SubclassType*>(this)->*memfun)(message);
+    });
   }
 
   template<typename MessageType>

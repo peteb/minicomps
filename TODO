@@ -1,9 +1,8 @@
 * Async queries and events need to copy their arguments/decay
-* Trace logging, statistics gathering
 
+* Trace logging, statistics gathering, flow control
 * Async query filter function
 * Mutable responses (responses containing ptrs/refs)
-* Bind queries to memfuns
 * Reflection for dependencies
 
 * Improve executor performance

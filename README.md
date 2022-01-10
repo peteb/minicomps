@@ -157,7 +157,7 @@ As measured on my MacBook Pro from 2013 through Docker. Might not be up-to-date,
 | Async queries across executor, same thread                |   3,600K/s | 0            | 0                   |
 | Async queries SPSC from 1 thread to 1 receiver thread     |   2,800K/s | 0 (amortized)| ~0.5                |
 | Async queries MPSC from 3 threads to 1 receiver thread    |   1,400K/s | 0 (amortized)| ~0.95               |
-| Async events same executor                                | 120,000K/s | 0            | 0                   |
+| Sync events same executor                                 | 120,000K/s | 0            | 0                   |
 | Async events SPSC from 1 thread to 1 receiver thread      |   4,890K/s | 0 (amortized)| ~0.43               |
 
 - Note: the asynchronous messaging system is almost as simple as they come; for example, the queue is based on std::vector protected by a std::mutex, and there's a fair bit of lock contention (as can be seen by the lock failures in the table above)
