@@ -18,6 +18,7 @@
 #include <iostream>
 #include <unordered_map>
 #include <vector>
+#include <mutex>
 
 namespace mc {
 
@@ -152,6 +153,8 @@ public:
   };
 
   virtual void* lookup_sync_handler(message_id msgId) override {
+    std::lock_guard<std::recursive_mutex> lg(lock);
+
     auto iter = sync_handlers_.find(msgId);
     if (iter == std::end(sync_handlers_))
       return nullptr;
@@ -160,6 +163,8 @@ public:
   }
 
   virtual void* lookup_async_handler(message_id msgId) override {
+    std::lock_guard<std::recursive_mutex> lg(lock);
+
     auto iter = async_handlers_.find(msgId);
     if (iter == std::end(async_handlers_))
       return nullptr;
