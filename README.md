@@ -30,12 +30,18 @@ public:
     {}
 
   virtual void publish() override {
+    // Async queries are functions that get passed a callback and can return later
     publish_async_query<Sum>(&receiver::sum);
+
+    // Sync queries are direct invocation and lock the target component
     publish_sync_query<UpdateValues>(&receiver::update_values);
-    publish_async_event_listener<UserUpdated>(&receiver::on_user_updated);
+
+    // Events are structs that are sent out 1:n
+    subscribe_event<UserUpdated>(&receiver::on_user_updated);
   }
 
   int sum(int t1, int t2, mc::callback_result<int>&& result) {
+    // Callbacks can fail or return successfully
     result(t1 + t2);
   }
 

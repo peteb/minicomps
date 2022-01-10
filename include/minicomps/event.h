@@ -1,7 +1,7 @@
 /// Copyright 2022 Peter Backman
 
-#ifndef MINICOMPS_ASYNC_EVENT_H_
-#define MINICOMPS_ASYNC_EVENT_H_
+#ifndef MINICOMPS_EVENT_H_
+#define MINICOMPS_EVENT_H_
 
 #include <minicomps/poly_ref.h>
 
@@ -9,11 +9,11 @@ namespace mc {
 
 /// An event is like a query except it's sent to 0..* recipients and without a response.
 template<typename MessageType>
-class async_event {
+class event {
   poly_ref_base<MessageType>* handler_;
 
 public:
-  async_event(poly_ref_base<MessageType>* handler) : handler_(handler) {}
+  event(poly_ref_base<MessageType>* handler) : handler_(handler) {}
 
   void operator() (MessageType&& event) {
     for (auto& receiver_handler : handler_->lookup()) {
@@ -36,4 +36,4 @@ public:
 }
 
 #endif
-// MINICOMPS_ASYNC_EVENT_H_
+// MINICOMPS_EVENT_H_

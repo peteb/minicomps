@@ -2,7 +2,6 @@
 * Mutable responses (responses containing ptrs/refs)
 * Reflection for dependencies, dependency verification
 
-* Rename async_events to just events
 * Call sync queries using async
 * Async queries and events need to copy their arguments/decay
 * Tests that enforce number of allocations

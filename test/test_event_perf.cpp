@@ -33,11 +33,11 @@ class send_component : public component_base<send_component> {
 public:
   send_component(broker& broker, executor_ptr executor)
     : component_base("sender", broker, executor)
-    , summation_finished(lookup_async_event<SummationFinished>())
+    , summation_finished(lookup_event<SummationFinished>())
     {}
 
   virtual void publish() {
-    publish_async_event_listener<ReceiverFinished>(&send_component::on_receiver_finished);
+    subscribe_event<ReceiverFinished>(&send_component::on_receiver_finished);
   }
 
   void on_receiver_finished(const ReceiverFinished&) {
@@ -46,18 +46,18 @@ public:
 
   bool receiver_finished = false;
 
-  async_event<SummationFinished> summation_finished;
+  event<SummationFinished> summation_finished;
 };
 
 class recv_component : public component_base<recv_component> {
 public:
   recv_component(broker& broker, executor_ptr executor)
     : component_base("receiver", broker, executor)
-    , receiver_finished(lookup_async_event<ReceiverFinished>())
+    , receiver_finished(lookup_event<ReceiverFinished>())
     {}
 
   virtual void publish() override {
-    publish_async_event_listener<SummationFinished>([this] (const SummationFinished& info) {
+    subscribe_event<SummationFinished>([this] (const SummationFinished& info) {
       if (events_received++ >= 10000000) {
         receiver_finished({});
         finished = true;
@@ -68,7 +68,7 @@ public:
   int events_received = 0;
   bool finished = false;
 
-  async_event<ReceiverFinished> receiver_finished;
+  event<ReceiverFinished> receiver_finished;
 };
 
 TEST(async_event_perf, same_executor) {

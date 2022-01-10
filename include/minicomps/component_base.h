@@ -10,7 +10,7 @@
 #include <minicomps/executor.h>
 #include <minicomps/sync_query.h>
 #include <minicomps/async_query.h>
-#include <minicomps/async_event.h>
+#include <minicomps/event.h>
 #include <minicomps/mono_ref.h>
 #include <minicomps/poly_ref.h>
 
@@ -114,7 +114,7 @@ public:
 
   /// Publishes a callable as an event listener for asynchronous events.
   template<typename MessageType, typename CallbackType>
-  void publish_async_event_listener(CallbackType&& handler) {
+  void subscribe_event(CallbackType&& handler) {
     const message_id msg_id = get_message_id<MessageType>();
     broker_.associate(msg_id, shared_from_this());
 
@@ -125,8 +125,8 @@ public:
 
   /// Publishes a member function as an event listener for asynchronous events.
   template<typename MessageType>
-  void publish_async_event_listener(void(SubclassType::*memfun)(const MessageType& message)) {
-    publish_async_event_listener<MessageType>([this, memfun] (const MessageType& message) {
+  void subscribe_event(void(SubclassType::*memfun)(const MessageType& message)) {
+    subscribe_event<MessageType>([this, memfun] (const MessageType& message) {
       (static_cast<SubclassType*>(this)->*memfun)(message);
     });
   }
@@ -146,10 +146,10 @@ public:
   };
 
   template<typename MessageType>
-  async_event<MessageType> lookup_async_event() {
+  event<MessageType> lookup_event() {
     auto handler_ref = std::make_shared<poly_ref_base<MessageType>>(broker_, *this);
     poly_refs_.push_back(handler_ref);
-    return async_event<MessageType>(handler_ref.get());
+    return event<MessageType>(handler_ref.get());
   };
 
   virtual void* lookup_sync_handler(message_id msgId) override {

@@ -30,10 +30,10 @@ class send_component : public component_base<send_component> {
 public:
   send_component(broker& broker, executor_ptr executor)
     : component_base("sender", broker, executor)
-    , summation_finished(lookup_async_event<SummationFinished>())
+    , summation_finished(lookup_event<SummationFinished>())
     {}
 
-  async_event<SummationFinished> summation_finished;
+  event<SummationFinished> summation_finished;
 };
 
 class recv_component : public component_base<recv_component> {
@@ -43,7 +43,7 @@ public:
     {}
 
   virtual void publish() override {
-    publish_async_event_listener<SummationFinished>([this] (const SummationFinished& info) {
+    subscribe_event<SummationFinished>([this] (const SummationFinished& info) {
       received_event = info;
     });
   }
@@ -51,7 +51,7 @@ public:
   std::optional<SummationFinished> received_event;
 };
 
-TEST(async_event, events_can_be_received) {
+TEST(event, events_can_be_received) {
   // Given
   broker broker;
   executor_ptr sender_executor = std::make_shared<executor>();
