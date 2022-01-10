@@ -21,6 +21,7 @@
 // This separation makes it possible to call queries across shared libraries.
 DECLARE_QUERY(Sum, int(int t1, int t2)); DEFINE_QUERY(Sum);
 DECLARE_QUERY(UpdateValues, int(int new_value)); DEFINE_QUERY(UpdateValues);
+DECLARE_EVENT(UserUpdated, {int user_id; }); DEFINE_EVENT(UserUpdated);
 
 class receiver : public component_base<receiver> {
 public:
@@ -29,15 +30,23 @@ public:
     {}
 
   virtual void publish() override {
-    publish_async_query<Sum>([](int t1, int t2, mc::callback_result<int>&& result) {
-      result(t1 + t2);
-    });
+    publish_async_query<Sum>(&receiver::sum);
+    publish_sync_query<UpdateValues>(&receiver::update_values);
+    publish_async_event_listener<UserUpdated>(&receiver::on_user_updated);
+  }
 
-    publish_sync_query<UpdateValues>([this] (int new_value) {
-      value1 = new_value;
-      value2 = new_value;
-      return value1 - value2;
-    });
+  int sum(int t1, int t2, mc::callback_result<int>&& result) {
+    result(t1 + t2);
+  }
+
+  int update_values(int new_value) {
+    value1 = new_value;
+    value2 = new_value;
+    return value1 - value2;
+  }
+
+  void on_user_updated(const UserUpdated& info) {
+    // ...
   }
 
 private:

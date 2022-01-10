@@ -1,21 +1,19 @@
-* Async queries and events need to copy their arguments/decay
-
 * Trace logging, statistics gathering, flow control
-* Async query filter function
 * Mutable responses (responses containing ptrs/refs)
-* Reflection for dependencies
+* Reflection for dependencies, dependency verification
 
-* Improve executor performance
-* Try out https://github.com/cameron314/readerwriterqueue
+* Rename async_events to just events
+* Call sync queries using async
+* Async queries and events need to copy their arguments/decay
 * Tests that enforce number of allocations
 * Should we expose async/sync queries? What should the default be? What about async/sync events?
 * Well-defined behavior when components are removed in the middle of a call
 * any_unaligned_storage should fall back to heap allocated if needed
 * Minicoros support
-* Call sync queries using async
-* Dependency verification
 * Flag for forcing async even if sender and receiver are on the same executor
 * Flag to toggle behavior for async queries when receiver has unloaded (cancel request/"black hole", raise error, resend (next frame), DLQ)
 * lookup(query1, query2, query3) that works for both sync and async?
 * Defer publishing to onLink (automatically)
 
+* Improve executor performance
+* Try out https://github.com/cameron314/readerwriterqueue
