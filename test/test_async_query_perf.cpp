@@ -61,10 +61,6 @@ public:
     , update_values_(lookup_async_query<UpdateValues>())
     {}
 
-  void precache() {
-    sum_(1, 3);
-  }
-
   void send() {
     sum_(4, 5).with_callback([&](mc::concrete_result<int> result) {});
   }
@@ -105,15 +101,13 @@ TEST(async_query_perf, simple_same_executor_call) {
   auto c1 = registry.create<recv_component>(broker, exec);
   auto c2 = registry.create<send_component>(broker, exec);
 
-  c2->precache();
-
   measure_with_allocs([c2] {
     for (int i = 0; i < 2000000; ++i) {
       c2->send();
     }
   });
 
-  // 45 ms on my computer, 44 444 000/s
+  // 80 ms on my computer, 25 000 000/s
 }
 
 TEST(async_query_perf, simple_different_executor_same_thread) {
@@ -125,8 +119,6 @@ TEST(async_query_perf, simple_different_executor_same_thread) {
   auto c1 = registry.create<recv_component>(broker, exec1);
   auto c2 = registry.create<send_component>(broker, exec2);
 
-  c2->precache();
-
   measure_with_allocs([c2, exec1, exec2] {
     for (int i = 0; i < 2000000; ++i) {
       c2->send();
@@ -135,7 +127,7 @@ TEST(async_query_perf, simple_different_executor_same_thread) {
     }
   });
 
-  // 550 ms on my computer, = 3 636 000/s
+  // 589 ms on my computer, = 3 396 000/s
 }
 
 TEST(async_query_perf, spsc_mt_one_producer) {
@@ -168,7 +160,7 @@ TEST(async_query_perf, spsc_mt_one_producer) {
 
   receiver->done = true;
   receiver_thread.join();
-  // 692 ms on my computer, = 2 874 000/s
+  // 712 ms on my computer, = 2 808 000/s
 }
 
 TEST(async_query_perf, mpsc_mt_three_producers) {
@@ -224,7 +216,7 @@ TEST(async_query_perf, mpsc_mt_three_producers) {
 
   receiver->done = true;
   t1.join();
-  // 1366 ms on my computer, = 1 464 000/s
+  // 1413 ms on my computer, = 1 415 000/s
 }
 
 }

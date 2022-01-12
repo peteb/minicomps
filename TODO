@@ -2,10 +2,9 @@
 * Mutable responses (responses containing ptrs/refs)
 * Flow control
 
-* Sessions
 * Built-in retries?
-* Cancelations
 
+* Build with more errors activated
 * Test compilation performance
 * Call sync queries using async
 * Async queries and events need to copy their arguments/decay

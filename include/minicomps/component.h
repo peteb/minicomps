@@ -4,6 +4,7 @@
 #define MINICOMPS_COMPONENT_H_
 
 #include <minicomps/executor.h>
+#include <minicomps/lifetime.h>
 
 #include <cstdint>
 #include <mutex>
@@ -59,6 +60,7 @@ public:
   const executor_ptr executor;  /// Handles incoming async requests and responses
   const void* executor_id;      /// For checking whether two components are on the same executor, and thus, same thread of execution
   component_listener* listener;
+  lifetime default_lifetime;
 
   std::recursive_mutex lock;    /// The component-level lock, used for synchronous queries across threads of execution
 };

@@ -11,6 +11,7 @@
 #include <minicomps/testing.h>
 
 #include <memory>
+#include <optional>
 
 using namespace testing;
 using namespace mc;
@@ -19,6 +20,7 @@ namespace {
 
 DECLARE_QUERY(Sum, int(int, int)); DEFINE_QUERY(Sum);
 DECLARE_QUERY(Print, void(int)); DEFINE_QUERY(Print);
+DECLARE_QUERY(SaveCallbackResult, void()); DEFINE_QUERY(SaveCallbackResult);
 
 class recording_listener : public component_listener {
 public:
@@ -56,6 +58,7 @@ public:
       return result(t1 + t2);
     });
 
+    publish_async_query<SaveCallbackResult>(&recv_component::save_callback_result);
     publish_async_query<Print>(&recv_component::print);
   }
 
@@ -63,6 +66,12 @@ public:
     print_called_with = val;
     result({});
   }
+
+  void save_callback_result(callback_result<void>&& result) {
+    saved_callback_result = std::make_shared<callback_result<void>>(std::move(result));
+  }
+
+  std::shared_ptr<callback_result<void>> saved_callback_result;
 
   bool called = false;
   int print_called_with = 0;
@@ -74,10 +83,12 @@ public:
     : component_base("sender", broker, executor)
     , sum(lookup_async_query<Sum>())
     , print(lookup_async_query<Print>())
+    , save_callback_result(lookup_async_query<SaveCallbackResult>())
     {}
 
   async_query<Sum> sum;
   async_query<Print> print;
+  async_query<SaveCallbackResult> save_callback_result;
 };
 
 // TODO: what happens if we call a message that no one receives?
@@ -170,6 +181,59 @@ TEST(async_query, invocation_across_different_executors_triggers_enqueue_listene
   // Then
   ASSERT_TRUE(receiver_listener.on_enqueue_called);
   ASSERT_TRUE(sender_listener.on_enqueue_called)
+}
+
+TEST(async_query, lifetime_expiration_stops_callback) {
+  // Given
+  broker broker;
+  executor_ptr exec1 = std::make_shared<executor>();
+  executor_ptr exec2 = std::make_shared<executor>();
+  component_registry registry;
+  auto sender = registry.create<send_component>(broker, exec1);
+  auto receiver = registry.create<recv_component>(broker, exec2);
+  bool returned = false;
+  lifetime lifetime;
+
+  // When
+  sender->print(432)
+    .with_lifetime(lifetime)
+    .with_callback([&](mc::concrete_result<void>) {returned = true; });
+
+  lifetime.reset();
+  exec2->execute();
+  exec1->execute();
+
+  // Then
+  ASSERT_FALSE(returned);
+  ASSERT_EQ(receiver->print_called_with, 432);
+}
+
+TEST(async_query, blbl) {
+  // Given
+  broker broker;
+  executor_ptr exec = std::make_shared<executor>();
+  component_registry registry;
+  auto sender = registry.create<send_component>(broker, exec);
+  auto receiver = registry.create<recv_component>(broker, exec);
+  bool returned = false;
+  lifetime lifetime;
+
+  // When
+  sender->save_callback_result()
+    .with_lifetime(lifetime)
+    .with_callback([&](mc::concrete_result<void>) {returned = true; });
+
+  // ... check that the canceled information is propagated when we reset the lifetime
+  ASSERT_FALSE(returned);
+  ASSERT_FALSE(receiver->saved_callback_result->canceled());
+
+  lifetime.reset();
+  ASSERT_TRUE(receiver->saved_callback_result->canceled());
+
+  // ... check that we don't trigger the local callback
+  (*receiver->saved_callback_result)({});
+
+  ASSERT_FALSE(returned);
 }
 
 // TODO: more extensive callback testing

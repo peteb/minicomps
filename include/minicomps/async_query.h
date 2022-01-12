@@ -36,18 +36,29 @@ public:
   template<typename... ArgumentTypes>
   class query_invoker {
   public:
-    query_invoker(async_query& async_query, ArgumentTypes&&... arguments)
+    query_invoker(async_query& async_query, lifetime_weak_ptr&& lifetime, ArgumentTypes&&... arguments)
       : async_query_(async_query)
+      , lifetime_(std::move(lifetime))
       , arguments_(std::forward<ArgumentTypes>(arguments)...)
       {}
 
-    void with_callback(std::function<void(mc::concrete_result<result_type>&&)>&& callback) {
-      async_query_.execute_with_callback(std::move(callback), std::move(arguments_));
+    ~query_invoker() {
+      async_query_.execute_with_callback(std::move(callback_), std::move(lifetime_), std::move(arguments_));
+    }
+
+    query_invoker&& with_lifetime(const lifetime& life) && {
+      lifetime_ = life.create_weak_ptr();
+      return std::move(*this);
+    }
+
+    query_invoker&& with_callback(std::function<void(mc::concrete_result<result_type>&&)>&& callback) && {
+      callback_ = std::move(callback);
+      return std::move(*this);
     }
 
     template<typename OuterResultType, typename CallbackType>
-    void with_successful_callback(OuterResultType&& outer_result, CallbackType&& callback) {
-      with_callback([outer_result = std::move(outer_result), callback = std::move(callback)](mc::concrete_result<result_type>&& inner_result) mutable {
+    query_invoker&& with_successful_callback(OuterResultType&& outer_result, CallbackType&& callback) && {
+      std::move(*this).with_callback([outer_result = std::move(outer_result), callback = std::move(callback)](mc::concrete_result<result_type>&& inner_result) mutable {
         if (!inner_result.success()) {
           outer_result(std::move(*inner_result.get_failure()));
           return;
@@ -55,10 +66,14 @@ public:
 
         callback(*inner_result.get_value(), std::move(outer_result));
       });
+
+      return std::move(*this);
     }
 
   private:
     async_query& async_query_;
+    lifetime_weak_ptr lifetime_;
+    std::function<void(mc::concrete_result<result_type>&&)> callback_;
     std::tuple<ArgumentTypes...> arguments_;
     component* sender_;
   };
@@ -67,12 +82,12 @@ public:
   /// non-pack parameters (the callback) after a parameter pack.
   template<typename... Args>
   query_invoker<Args...> operator() (Args&&... arguments) {
-    return query_invoker<Args...>(*this, std::forward<Args>(arguments)...);
+    return query_invoker<Args...>(*this, owning_component_->default_lifetime.create_weak_ptr(), std::forward<Args>(arguments)...);
   }
 
 private:
   template<typename CallbackType, typename... ArgumentTypes>
-  void execute_with_callback(CallbackType&& callback, std::tuple<ArgumentTypes...>&& arguments) {
+  void execute_with_callback(CallbackType&& callback, lifetime_weak_ptr&& lifetime, std::tuple<ArgumentTypes...>&& arguments) {
     auto handler = handler_->lookup();
     auto& receiving_component = handler_->receiver();
 
@@ -85,7 +100,7 @@ private:
       if (receiving_component->listener)
         receiving_component->listener->on_invoke(owning_component_, receiving_component.get(), msg_info_, message_type::REQUEST);
 
-      callback_result result_handler{nullptr, owning_component_, receiving_component.get(), msg_info_, std::move(callback)};
+      callback_result result_handler{nullptr, std::move(lifetime), owning_component_, receiving_component.get(), msg_info_, std::move(callback)};
       std::apply(*handler, std::tuple_cat(std::move(arguments), std::make_tuple(std::move(result_handler))));
     }
     else {
@@ -93,11 +108,14 @@ private:
         std::tuple<ArgumentTypes...> arguments;
         std::function<void(mc::concrete_result<result_type>&&)> callback;
         executor_ptr receiver_executor; // We have to capture executor as a shared_ptr to protect against lifetime issues
-        component* receiver; // Only used by the listener
-        component* sender;   // Only used by the listener
+        lifetime_weak_ptr lifetime;
+
+        // Fields used only for the listener
+        component* receiver;
+        component* sender;
       };
 
-      request_data request{std::move(arguments), std::move(callback), owning_component_->executor, owning_component_, receiving_component.get()};
+      request_data request{std::move(arguments), std::move(callback), owning_component_->executor, std::move(lifetime), owning_component_, receiving_component.get()};
 
       // Note: handler as captured here could become a dangling pointer if the message handler is removed/replaced
       auto request_task = [handler] (void* data) {
@@ -106,7 +124,15 @@ private:
 
         // The callback_result is the object that gets called by the application to return a value to the calling component. Sender and receiver
         // is only used by the listener.
-        callback_result result_handler{std::move(request.receiver_executor), request.receiver, request.sender, msg_info, std::move(request.callback)};
+        callback_result result_handler{
+          std::move(request.receiver_executor),
+          std::move(request.lifetime),
+          request.receiver,
+          request.sender,
+          msg_info,
+          std::move(request.callback)
+        };
+
         std::apply(*handler, std::tuple_cat(std::move(request.arguments), std::make_tuple(std::move(result_handler))));
       };
 

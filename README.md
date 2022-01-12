@@ -8,7 +8,8 @@
 - Queries and events do **no memory allocations**
 - **Automatic locking** on component level for synchronous queries
 - All actions are **thread safe** (unless explicitly overridden by the user)
-- Filter handlers for async queries (can be used for mocks, spies, error injection, etc)
+- Asynchronous queries can be **canceled**, both manually and automatically, and the handling component can check for cancellations
+- **Filter handlers** can be registered for async queries (can be used for mocks, spies, error injection, etc)
 - Component-level listeners for invocations (can be used to collect request duration, logging, tracing, generating sequence diagrams, etc)
 - Periodical pumping and async operations can be skipped if the handling component has been synchronously locked (TODO)
 - Startup dependency verification (TODO)
@@ -115,7 +116,7 @@ private:
 };
 ```
 
-## Events
+### Events
 ```cpp
 DECLARE_EVENT(ContactUpdated, {
   int contactId;
@@ -153,6 +154,54 @@ public:
 
 ```
 
+### Cancellation
+```c++
+DECLARE_QUERY(LongOperation, int()); DEFINE_QUERY(LongOperation);
+
+class receiver : public component_base<receiver> {
+public:
+  receiver(broker& broker, executor_ptr executor)
+    : component_base("receiver", broker, executor)
+    {}
+
+  virtual void publish() override {
+    publish_async_query<LongOperation>(&receiver::long_operation);
+  }
+
+  int long_operation(mc::callback_result<int>&& result) {
+    if (result.canceled()) {
+      // The sender went out of scope or explicitly canceled the request
+    }
+
+    // We can still return a result. It'll be ignored though.
+    result(123);
+  }
+};
+
+class sender : public component_base<sender> {
+public:
+  sender(broker& broker, executor_ptr executor)
+    : component_base("sender", broker, executor)
+    , long_operation_(lookup_async_query<LongOperation>())
+    {}
+
+  void frob() {
+    long_operation_()
+      .with_lifetime(operation_lifetime_)
+      .with_callback([] {
+        // This callback won't get invoked if `operation_lifetime` has expired
+      });
+
+    operation_lifetime_.reset(); // Expire/cancel
+  }
+
+private:
+  async_query<LongOperation> long_operation_;
+  lifetime operation_lifetime_;
+};
+
+```
+
 ## Limitations and trade-offs
 - Setting up and tearing down components isn't important from a performance perspective. Ie; it's OK to allocate many objects and take big locks.
 - Sync queries should be decently fast, at least 100k calls per millisecond.
@@ -168,8 +217,8 @@ As measured on my MacBook Pro from 2013 through Docker. Might not be up-to-date,
 | Sync queries on the same executor                         | 143,000K/s | 0            | 0                   |
 | Sync queries across threads                               |  28,000K/s | 0            | 0                   |
 | Sync queries from 3 threads                               |   7,000K/s | 0            |                     |
-| Async queries on the same executor                        |  53,000K/s | 0            | 0                   |
-| Async queries across executor, same thread                |   3,600K/s | 0            | 0                   |
+| Async queries on the same executor                        |  25,000K/s | 0            | 0                   |
+| Async queries across executor, same thread                |   3,300K/s | 0            | 0                   |
 | Async queries SPSC from 1 thread to 1 receiver thread     |   2,800K/s | 0 (amortized)| ~0.5                |
 | Async queries MPSC from 3 threads to 1 receiver thread    |   1,400K/s | 0 (amortized)| ~0.95               |
 | Sync events same executor                                 | 120,000K/s | 0            | 0                   |
