@@ -1,7 +1,12 @@
-* Trace logging, statistics gathering, flow control
-* Mutable responses (responses containing ptrs/refs)
 * Reflection for dependencies, dependency verification
+* Mutable responses (responses containing ptrs/refs)
+* Flow control
 
+* Sessions
+* Built-in retries?
+* Cancelations
+
+* Test compilation performance
 * Call sync queries using async
 * Async queries and events need to copy their arguments/decay
 * Tests that enforce number of allocations

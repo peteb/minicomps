@@ -99,7 +99,7 @@ TEST(sync_query_perf, simple_same_executor_call) {
 
   ASSERT_EQ(ac.total_allocation_count(), 0);
 
-  // 7017 ms on my computer, = 142 511 000/s
+  // 731 ms on my computer, = 136 798 000/s
 }
 
 TEST(sync_query_perf, simple_different_executor_call) {
@@ -120,7 +120,7 @@ TEST(sync_query_perf, simple_different_executor_call) {
   });
 
   ASSERT_EQ(ac.total_allocation_count(), 0);
-  // 34742 ms on my computer, = 28 784 000/s
+  // 3467 ms on my computer, = 28 843 000/s
 }
 
 TEST(sync_query_perf, spsc_multithreading_seems_to_work) {
@@ -153,7 +153,7 @@ TEST(sync_query_perf, spsc_multithreading_seems_to_work) {
 
   ASSERT_EQ(allocs, 0);
 
-  // 351 ms = 28 490 000/s
+  // 324 ms = 30 864 000/s
 }
 
 TEST(sync_query_perf, multithreading_seems_to_work) {
@@ -191,7 +191,7 @@ TEST(sync_query_perf, multithreading_seems_to_work) {
   t1.join();
   t2.join();
   t3.join();
-  // 1392 ms on my computer, = 7 184 000/s for 3 senders
+  // 1947 ms on my computer, = 5 136 000/s for 3 senders
 }
 
 }

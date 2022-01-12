@@ -55,7 +55,7 @@ private:
   static std::atomic_int num_lock_failures_;
 
   struct task {
-    any_aligned_storage<64> data;
+    any_aligned_storage<96> data;
     std::function<void(void*)> fun;
 
     void execute() {

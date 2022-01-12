@@ -8,6 +8,7 @@
 #include <minicoros/coroutine.h>
 #include <minicomps/messaging.h>
 #include <minicomps/callback.h>
+#include <minicomps/component.h>
 
 #include <tuple>
 #include <memory>
@@ -25,7 +26,10 @@ class async_query {
   async_mono_ref<MessageType>* handler_;
 
 public:
-  async_query(async_mono_ref<MessageType>* handler, executor_ptr executor) : handler_(handler), executor_(executor) {}
+  async_query(async_mono_ref<MessageType>* handler, component* owning_component)
+    : handler_(handler)
+    , owning_component_(owning_component)
+    , msg_info_(get_message_info<MessageType>()) {}
 
   using result_type = typename signature_util<typename query_info<MessageType>::signature>::return_type;
 
@@ -39,35 +43,46 @@ public:
 
     void with_callback(std::function<void(mc::concrete_result<result_type>&&)>&& callback) {
       auto handler = async_query_.handler_->lookup();
-      auto& component = async_query_.handler_->receiver();
+      auto& receiving_component = async_query_.handler_->receiver();
 
-      if (!component || !handler) {
+      if (!receiving_component || !handler) {
         // TODO: fallback handler?
         std::abort(); // TODO: make this behavior configurable
       }
 
       if (async_query_.handler_->mutual_executor()) {
-        callback_result result_handler{nullptr, std::move(callback)};
+        if (receiving_component->listener)
+          receiving_component->listener->on_invoke(async_query_.owning_component_, receiving_component.get(), async_query_.msg_info_, message_type::REQUEST);
+
+        callback_result result_handler{nullptr, async_query_.owning_component_, receiving_component.get(), async_query_.msg_info_, std::move(callback)};
         std::apply(*handler, std::tuple_cat(std::move(arguments_), std::make_tuple(std::move(result_handler))));
       }
       else {
         struct request_data {
           std::tuple<ArgumentTypes...> arguments;
           std::function<void(mc::concrete_result<result_type>&&)> callback;
-          executor_ptr receiver_executor;
+          executor_ptr receiver_executor; // We have to capture executor as a shared_ptr to protect against lifetime issues
+          component* receiver; // Only used by the listener
+          component* sender;   // Only used by the listener
         };
 
-        request_data request{std::move(arguments_), std::move(callback), async_query_.executor_};
+        request_data request{std::move(arguments_), std::move(callback), async_query_.owning_component_->executor, async_query_.owning_component_, receiving_component.get()};
 
         // Note: handler as captured here could become a dangling pointer if the message handler is removed/replaced
         auto request_task = [handler] (void* data) {
           request_data& request = *static_cast<request_data*>(data);
-          callback_result result_handler{std::move(request.receiver_executor), std::move(request.callback)};
+          const message_info& msg_info = get_message_info(static_cast<MessageType*>(nullptr));
+
+          // The callback_result is the object that gets called by the application to return a value to the calling component. Sender and receiver
+          // is only used by the listener.
+          callback_result result_handler{std::move(request.receiver_executor), request.receiver, request.sender, msg_info, std::move(request.callback)};
           std::apply(*handler, std::tuple_cat(std::move(request.arguments), std::make_tuple(std::move(result_handler))));
         };
 
-        // TODO: emplace
-        component->executor->enqueue_work(std::move(request_task), std::move(request));
+        receiving_component->executor->enqueue_work(std::move(request_task), std::move(request));
+
+        if (receiving_component->listener)
+          receiving_component->listener->on_enqueue(async_query_.owning_component_, receiving_component.get(), async_query_.msg_info_, message_type::REQUEST);
       }
     }
 
@@ -85,6 +100,7 @@ public:
   private:
     async_query& async_query_;
     std::tuple<ArgumentTypes...> arguments_;
+    component* sender_;
   };
 
   /// Creates an invocation object that will call this function. The object is needed because C++ doesn't allow
@@ -95,7 +111,8 @@ public:
   }
 
 private:
-  executor_ptr executor_;
+  component* owning_component_;
+  const message_info& msg_info_;
 };
 
 }

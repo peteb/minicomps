@@ -23,6 +23,11 @@ message_id get_message_id() {
   return get_message_id(static_cast<MessageType*>(nullptr));
 }
 
+class message_info {
+public:
+  const char* name;
+};
+
 template<typename T>
 struct signature_util;
 
@@ -92,18 +97,31 @@ public:
 template<typename MessageType>
 using query_info = decltype(get_query_info(std::declval<MessageType>()));
 
+template<typename MessageType>
+const message_info& get_message_info() {
+  return get_message_info(static_cast<MessageType*>(nullptr));
 }
+
+}
+
+#define xstr(s) str(s)
+#define str(s) #s
 
 #define MESSAGE_API  // dllexport/dllimport
 
 #define MESSAGE_DECLARATION(name)                                                           \
-  MESSAGE_API message_id get_message_id(name*);
+  MESSAGE_API message_id get_message_id(name*);                                             \
+  MESSAGE_API const message_info& get_message_info(name*);
 
 #define MESSAGE_DEFINITION(name)                                                            \
   message_id get_message_id(name*) {                                                        \
     static int uniq;                                                                        \
     return message_id{reinterpret_cast<uintptr_t>(&uniq)};                                  \
-  }
+  }                                                                                         \
+  const message_info& get_message_info(name*) {                                             \
+    static message_info msg{str(name)};                                                     \
+    return msg;                                                                             \
+  }                                                                                         \
 
 #define DECLARE_QUERY(name, type)                                                           \
   class name {};                                                                            \

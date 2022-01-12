@@ -86,7 +86,7 @@ TEST(async_event_perf, same_executor) {
   });
 
   ASSERT_TRUE(sender->receiver_finished);
-  // 83 ms on my computer = 120 481 000/s
+  // 93 ms on my computer = 107 527 000/s
 }
 
 TEST(async_event_perf, spsc_one_consumer_two_threads) {
@@ -121,7 +121,7 @@ TEST(async_event_perf, spsc_one_consumer_two_threads) {
   sender_thread.join();
   receiver_thread.join();
 
-  // 2054 ms on my computer = 4 868 000/s
+  // 2264 ms on my computer = 4 417 000/s
 }
 
 }

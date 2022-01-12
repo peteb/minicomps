@@ -20,6 +20,30 @@ namespace {
 DECLARE_QUERY(Sum, int(int, int)); DEFINE_QUERY(Sum);
 DECLARE_QUERY(Print, void(int)); DEFINE_QUERY(Print);
 
+class recording_listener : public component_listener {
+public:
+  virtual void on_enqueue(const component* sender, const component* receiver, const message_info& info, message_type type) override {
+    if (!receiver)
+      std::abort();
+    if (!sender)
+      std::abort();
+
+    on_enqueue_called = true;
+  }
+
+  virtual void on_invoke(const component* sender, const component* receiver, const message_info& info, message_type type) override {
+    if (!receiver)
+      std::abort();
+    if (!sender)
+      std::abort();
+
+    on_invoke_called = true;
+  }
+
+  bool on_enqueue_called = false;
+  bool on_invoke_called = false;
+};
+
 class recv_component : public component_base<recv_component> {
 public:
   recv_component(broker& broker, executor_ptr executor)
@@ -124,5 +148,30 @@ TEST(async_query, can_call_query_returning_void) {
   ASSERT_EQ(receiver->print_called_with, 432);
 }
 
+TEST(async_query, invocation_across_different_executors_triggers_enqueue_listener) {
+  // Given
+  recording_listener sender_listener, receiver_listener;
+
+  broker broker;
+  executor_ptr exec = std::make_shared<executor>();
+  executor_ptr exec2 = std::make_shared<executor>();
+  component_registry registry;
+  auto sender = registry.create<send_component>(broker, exec);
+  auto receiver = registry.create<recv_component>(broker, exec2);
+  receiver->listener = &receiver_listener;
+  sender->listener = &sender_listener;
+
+  // When
+  sender->print(432).with_callback([&](mc::concrete_result<void>) {});
+
+  exec->execute();
+  exec2->execute();
+
+  // Then
+  ASSERT_TRUE(receiver_listener.on_enqueue_called);
+  ASSERT_TRUE(sender_listener.on_enqueue_called)
+}
+
+// TODO: more extensive callback testing
 }
 

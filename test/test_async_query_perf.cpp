@@ -113,7 +113,7 @@ TEST(async_query_perf, simple_same_executor_call) {
     }
   });
 
-  // 38 ms on my computer, 52 631 000/s
+  // 45 ms on my computer, 44 444 000/s
 }
 
 TEST(async_query_perf, simple_different_executor_same_thread) {
@@ -135,7 +135,7 @@ TEST(async_query_perf, simple_different_executor_same_thread) {
     }
   });
 
-  // 521 ms on my computer, = 3 838 000/s
+  // 550 ms on my computer, = 3 636 000/s
 }
 
 TEST(async_query_perf, spsc_mt_one_producer) {
@@ -168,7 +168,7 @@ TEST(async_query_perf, spsc_mt_one_producer) {
 
   receiver->done = true;
   receiver_thread.join();
-  // 700 ms on my computer, = 2 857 000/s
+  // 692 ms on my computer, = 2 874 000/s
 }
 
 TEST(async_query_perf, mpsc_mt_three_producers) {
@@ -224,7 +224,7 @@ TEST(async_query_perf, mpsc_mt_three_producers) {
 
   receiver->done = true;
   t1.join();
-  // 3447 ms on my computer, =580/ms
+  // 1366 ms on my computer, = 1 464 000/s
 }
 
 }

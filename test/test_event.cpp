@@ -74,4 +74,6 @@ TEST(event, events_can_be_received) {
   ASSERT_EQ(receiver->received_event->term1, 10);
 }
 
+// TODO: tests for listeners
+
 }

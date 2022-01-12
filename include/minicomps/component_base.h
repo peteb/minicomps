@@ -135,21 +135,21 @@ public:
   sync_query<MessageType> lookup_sync_query() {
     auto handler_ref = std::make_shared<sync_mono_ref<MessageType>>(broker_, *this);
     mono_refs_.push_back(handler_ref);
-    return sync_query<MessageType>(handler_ref.get());
+    return sync_query<MessageType>(handler_ref.get(), this);
   };
 
   template<typename MessageType>
   async_query<MessageType> lookup_async_query() {
     auto handler_ref = std::make_shared<async_mono_ref<MessageType>>(broker_, *this);
     mono_refs_.push_back(handler_ref);
-    return async_query<MessageType>(handler_ref.get(), executor);
+    return async_query<MessageType>(handler_ref.get(), this);
   };
 
   template<typename MessageType>
   event<MessageType> lookup_event() {
     auto handler_ref = std::make_shared<poly_ref_base<MessageType>>(broker_, *this);
     poly_refs_.push_back(handler_ref);
-    return event<MessageType>(handler_ref.get());
+    return event<MessageType>(handler_ref.get(), this);
   };
 
   virtual void* lookup_sync_handler(message_id msgId) override {

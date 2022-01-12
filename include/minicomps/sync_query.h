@@ -21,7 +21,10 @@ class sync_query {
   sync_mono_ref<MessageType>* handler_;
 
 public:
-  sync_query(sync_mono_ref<MessageType>* handler_ref) : handler_(handler_ref) {}
+  sync_query(sync_mono_ref<MessageType>* handler_ref, component* owning_component)
+    : handler_(handler_ref)
+    , owning_component_(owning_component)
+    , msg_info_(get_message_info<MessageType>()) {}
 
   /// Invokes the function on the responding component. If no component has registered for this message,
   /// the fallback handler will be invoked. If fallback handler is missing, std::abort is raised.
@@ -35,12 +38,40 @@ public:
       std::abort(); // TODO: make this behavior configurable
     }
 
+    class listener_invoker {
+    public:
+      listener_invoker(component_listener* listener, component* sender, component* receiver, const message_info& msg_info, message_type msg_type)
+        : listener_(listener), sender_(sender), receiver_(receiver), msg_info_(msg_info), msg_type_(msg_type) {}
+
+      ~listener_invoker() {
+        if (listener_)
+          listener_->on_invoke(sender_, receiver_, msg_info_, msg_type_);
+      }
+
+    private:
+      component_listener* listener_;
+      component* sender_;
+      component* receiver_;
+      const message_info& msg_info_;
+      message_type msg_type_;
+    };
+
+    component_listener* listener = handler_->receiver()->listener;
+
     if (handler_->mutual_executor()) {
+      if (listener)
+        listener->on_invoke(owning_component_, handler_->receiver().get(), msg_info_, message_type::REQUEST);
+
       // We can skip the lock since the same executor is never updated from different threads
+      listener_invoker invoker(listener, handler_->receiver().get(), owning_component_, msg_info_, message_type::RESPONSE);
       return (*handler)(std::forward<Args>(arguments)...);
     }
     else {
-      std::lock_guard<std::recursive_mutex> lock(handler_->receiver()->lock);
+      if (listener)
+        listener->on_invoke(owning_component_, handler_->receiver().get(), msg_info_, message_type::LOCKED_REQUEST);
+
+      listener_invoker invoker(listener, handler_->receiver().get(), owning_component_, msg_info_, message_type::LOCKED_RESPONSE);
+      std::lock_guard<std::recursive_mutex> lg(handler_->receiver()->lock);
       return (*handler)(std::forward<Args>(arguments)...);
     }
   }
@@ -57,6 +88,8 @@ public:
 
 private:
   typename sync_mono_ref<MessageType>::handler_type fallback_handler_;
+  component* owning_component_;
+  const message_info& msg_info_;
 };
 
 }

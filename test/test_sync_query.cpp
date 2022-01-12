@@ -176,6 +176,7 @@ TEST(sync_query, can_invoke_namespaced_query) {
 
 // TODO: test for calling a function that returns a coroutine
 // TODO: test argument copies, references
+// TODO: tests for listeners
 
 }
 }
