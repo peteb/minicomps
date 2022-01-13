@@ -1,22 +1,26 @@
 * Reflection for dependencies, dependency verification
+* Support for communication policies
 * Mutable responses (responses containing ptrs/refs)
-* Flow control
-
-* Built-in retries?
 
 * Build with more errors activated
-* Test compilation performance
-* Call sync queries using async
+* Flag for forcing async even if sender and receiver are on the same executor
+* Minicoros support
+* any_unaligned_storage should fall back to heap allocated if needed
+* Well-defined behavior when components are removed in the middle of a call
 * Async queries and events need to copy their arguments/decay
+* Protection against weird edge cases; query getting published twice, etc
+* Register sync-looking code as async
+
+* TODOs in code
+* Test compilation performance
 * Tests that enforce number of allocations
 * Should we expose async/sync queries? What should the default be? What about async/sync events?
-* Well-defined behavior when components are removed in the middle of a call
-* any_unaligned_storage should fall back to heap allocated if needed
-* Minicoros support
-* Flag for forcing async even if sender and receiver are on the same executor
 * Flag to toggle behavior for async queries when receiver has unloaded (cancel request/"black hole", raise error, resend (next frame), DLQ)
 * lookup(query1, query2, query3) that works for both sync and async?
 * Defer publishing to onLink (automatically)
+* Built-in retries?
+* Budgeting for executors
 
+* Call sync queries using async
 * Improve executor performance
 * Try out https://github.com/cameron314/readerwriterqueue

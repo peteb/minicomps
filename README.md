@@ -10,6 +10,7 @@
 - All actions are **thread safe** (unless explicitly overridden by the user)
 - Asynchronous queries can be **canceled**, both manually and automatically, and the handling component can check for cancellations
 - **Filter handlers** can be registered for async queries (can be used for mocks, spies, error injection, etc)
+- Per-query executor to enable **flow control**
 - Component-level listeners for invocations (can be used to collect request duration, logging, tracing, generating sequence diagrams, etc)
 - Periodical pumping and async operations can be skipped if the handling component has been synchronously locked (TODO)
 - Startup dependency verification (TODO)
@@ -168,7 +169,7 @@ public:
     publish_async_query<LongOperation>(&receiver::long_operation);
   }
 
-  int long_operation(mc::callback_result<int>&& result) {
+  void long_operation(mc::callback_result<int>&& result) {
     if (result.canceled()) {
       // The sender went out of scope or explicitly canceled the request
     }
@@ -199,8 +200,32 @@ private:
   async_query<LongOperation> long_operation_;
   lifetime operation_lifetime_;
 };
-
 ```
+
+### Flow control
+```c++
+DECLARE_QUERY(LongOperation, int()); DEFINE_QUERY(LongOperation);
+
+class receiver : public component_base<receiver> {
+public:
+  receiver(broker& broker, executor_ptr executor)
+    : component_base("receiver", broker, executor)
+    {}
+
+  virtual void publish() override {
+    // By overriding the executor used for this query, the component can control its execution
+    publish_async_query<LongOperation>(&receiver::long_operation, operation_executor_);
+  }
+
+  void long_operation(mc::callback_result<int>&& result) {
+    result(123);
+  }
+
+private:
+  executor_ptr operation_executor_ = std::make_shared<executor>();
+};
+```
+
 
 ## Limitations and trade-offs
 - Setting up and tearing down components isn't important from a performance perspective. Ie; it's OK to allocate many objects and take big locks.

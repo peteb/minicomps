@@ -21,6 +21,7 @@ namespace {
 DECLARE_QUERY(Sum, int(int, int)); DEFINE_QUERY(Sum);
 DECLARE_QUERY(Print, void(int)); DEFINE_QUERY(Print);
 DECLARE_QUERY(SaveCallbackResult, void()); DEFINE_QUERY(SaveCallbackResult);
+DECLARE_QUERY(FlowControlledFunction, void()); DEFINE_QUERY(FlowControlledFunction);
 
 class recording_listener : public component_listener {
 public:
@@ -60,6 +61,7 @@ public:
 
     publish_async_query<SaveCallbackResult>(&recv_component::save_callback_result);
     publish_async_query<Print>(&recv_component::print);
+    publish_async_query<FlowControlledFunction>(&recv_component::flow_controlled_function, flow_executor);
   }
 
   void print(int val, callback_result<void>&& result) {
@@ -71,10 +73,17 @@ public:
     saved_callback_result = std::make_shared<callback_result<void>>(std::move(result));
   }
 
+  void flow_controlled_function(callback_result<void>&& result) {
+    flow_function_called = true;
+    result({});
+  }
+
   std::shared_ptr<callback_result<void>> saved_callback_result;
 
   bool called = false;
   int print_called_with = 0;
+  bool flow_function_called = false;
+  executor_ptr flow_executor = std::make_shared<executor>();
 };
 
 class send_component : public component_base<send_component> {
@@ -84,11 +93,13 @@ public:
     , sum(lookup_async_query<Sum>())
     , print(lookup_async_query<Print>())
     , save_callback_result(lookup_async_query<SaveCallbackResult>())
+    , flow_controlled_function(lookup_async_query<FlowControlledFunction>())
     {}
 
   async_query<Sum> sum;
   async_query<Print> print;
   async_query<SaveCallbackResult> save_callback_result;
+  async_query<FlowControlledFunction> flow_controlled_function;
 };
 
 // TODO: what happens if we call a message that no one receives?
@@ -208,7 +219,7 @@ TEST(async_query, lifetime_expiration_stops_callback) {
   ASSERT_EQ(receiver->print_called_with, 432);
 }
 
-TEST(async_query, blbl) {
+TEST(async_query, cancellation_status_is_propagated_to_callback_result_and_works) {
   // Given
   broker broker;
   executor_ptr exec = std::make_shared<executor>();
@@ -236,6 +247,24 @@ TEST(async_query, blbl) {
   ASSERT_FALSE(returned);
 }
 
+TEST(async_query, with_custom_executor_triggers_function_later) {
+  // Given
+  broker broker;
+  executor_ptr exec = std::make_shared<executor>();
+  component_registry registry;
+  auto sender = registry.create<send_component>(broker, exec);
+  auto receiver = registry.create<recv_component>(broker, exec);
+
+  // When/Then
+  sender->flow_controlled_function().with_callback([] (mc::concrete_result<void>&&) {}); // Components are on same executor, so request would be sync
+  ASSERT_FALSE(receiver->flow_function_called);
+
+  receiver->flow_executor->execute();
+  ASSERT_TRUE(receiver->flow_function_called);
+}
+
+// TODO: test async call for function with customized executor but components are on different executors
+// TODO: test sync call for function with customized executor
 // TODO: more extensive callback testing
 }
 

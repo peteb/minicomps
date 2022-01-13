@@ -36,7 +36,7 @@ public:
           (*handler)(*event);
         };
 
-        receiver_handler.receiver()->executor->enqueue_work(std::move(task), event);
+        receiver_handler.receiver()->default_executor->enqueue_work(std::move(task), event);
       }
     }
   }

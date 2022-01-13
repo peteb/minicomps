@@ -69,21 +69,22 @@ public:
 
   /// Publishes a callable as an asynchronous query
   template<typename MessageType, typename CallbackType>
-  void publish_async_query(CallbackType&& handler) {
+  void publish_async_query(CallbackType&& handler, executor_ptr executor_override = nullptr) {
     const message_id msg_id = get_message_id<MessageType>();
     broker_.associate(msg_id, shared_from_this());
 
     using async_wrapper_type = typename query_info<MessageType>::async_handler_wrapper_type;
     async_handlers_[msg_id] = std::make_shared<async_wrapper_type>(std::move(handler));
+    async_executor_overrides_[msg_id] = executor_override;
     // TODO: remove from queryHandlers
   }
 
   /// Publishes a member function as an asynchronous query
   template<typename MessageType, typename... ArgumentTypes>
-  void publish_async_query(void(SubclassType::*memfun)(ArgumentTypes...)) {
+  void publish_async_query(void(SubclassType::*memfun)(ArgumentTypes...), executor_ptr executor_override = nullptr) {
     publish_async_query<MessageType>([this, memfun] (ArgumentTypes&&... arguments) {
       (static_cast<SubclassType*>(this)->*memfun)(std::forward<ArgumentTypes>(arguments)...);
-    });
+    }, std::move(executor_override));
   }
 
   /// Adds a handler "on top" of an existing handler. Decides whether the next
@@ -152,30 +153,41 @@ public:
     return event<MessageType>(handler_ref.get(), this);
   };
 
-  virtual void* lookup_sync_handler(message_id msgId) override {
+  virtual void* lookup_sync_handler(message_id msg_id) override {
     std::lock_guard<std::recursive_mutex> lg(lock);
 
-    auto iter = sync_handlers_.find(msgId);
+    auto iter = sync_handlers_.find(msg_id);
     if (iter == std::end(sync_handlers_))
       return nullptr;
 
     return iter->second->get_handler_ptr();
   }
 
-  virtual void* lookup_async_handler(message_id msgId) override {
+  virtual void* lookup_async_handler(message_id msg_id) override {
     std::lock_guard<std::recursive_mutex> lg(lock);
 
-    auto iter = async_handlers_.find(msgId);
+    auto iter = async_handlers_.find(msg_id);
     if (iter == std::end(async_handlers_))
       return nullptr;
 
     return iter->second->get_handler_ptr();
   }
 
+  virtual executor_ptr lookup_executor_override(message_id msg_id) override {
+    std::lock_guard<std::recursive_mutex> lg(lock);
+
+    auto iter = async_executor_overrides_.find(msg_id);
+    if (iter == std::end(async_executor_overrides_))
+      return nullptr;
+
+    return iter->second;
+  }
+
 private:
   broker& broker_;
   std::unordered_map<message_id, std::shared_ptr<message_handler>> sync_handlers_;
   std::unordered_map<message_id, std::shared_ptr<message_handler>> async_handlers_;
+  std::unordered_map<message_id, executor_ptr> async_executor_overrides_;
 
   std::vector<std::shared_ptr<mono_ref>> mono_refs_; // Reset shared_ptrs in mono_refs to avoid memory leaks at shutdown
   std::vector<std::shared_ptr<poly_ref>> poly_refs_; // ... and in poly_refs

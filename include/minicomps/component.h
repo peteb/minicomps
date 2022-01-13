@@ -48,17 +48,17 @@ public:
 ///       -
 class component {
 public:
-  component(const std::string& name, executor_ptr executor) : name(name), executor(executor), listener(nullptr) {executor_id = executor.get(); }
+  component(const std::string& name, executor_ptr executor) : name(name), default_executor(executor), listener(nullptr) {}
 
   virtual ~component() = default;
   virtual void publish() {}
   virtual void unpublish() {}
-  virtual void* lookup_sync_handler(message_id msgId) = 0;
-  virtual void* lookup_async_handler(message_id msgId) = 0;
+  virtual void* lookup_sync_handler(message_id msg_id) = 0;
+  virtual void* lookup_async_handler(message_id msg_id) = 0;
+  virtual executor_ptr lookup_executor_override(message_id msg_id) = 0;
 
-  const std::string name;       /// Class name of the component's implementation
-  const executor_ptr executor;  /// Handles incoming async requests and responses
-  const void* executor_id;      /// For checking whether two components are on the same executor, and thus, same thread of execution
+  const std::string name;               /// Class name of the component's implementation
+  const executor_ptr default_executor;  /// Handles incoming async requests and responses
   component_listener* listener;
   lifetime default_lifetime;
 

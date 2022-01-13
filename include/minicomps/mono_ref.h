@@ -26,6 +26,10 @@ public:
 template<typename MessageType, typename HandlerType, typename SubclassType>
 class mono_ref_base : public mono_ref {
   HandlerType* handler_ = nullptr;
+  std::weak_ptr<message_receivers> receivers_;
+  bool same_executor_ = false;
+  std::shared_ptr<component> receiver_;
+  std::shared_ptr<executor> receiver_executor_;
 
 public:
   mono_ref_base(broker& broker, component& component) : broker_(broker), component_(component) {}
@@ -37,10 +41,10 @@ public:
     if (handler_ && !receivers_.expired())
       return handler_;
 
-    const message_id msgId = get_message_id<MessageType>();
+    const message_id msg_id = get_message_id<MessageType>();
 
     // Find all components that are associated for this message id
-    receivers_ = broker_.lookup(msgId);
+    receivers_ = broker_.lookup(msg_id);
     auto receivers = receivers_.lock();
 
     if (!receivers) // No receivers
@@ -55,13 +59,19 @@ public:
       return nullptr;
 
     SubclassType& subclass = *static_cast<SubclassType*>(this);
-    handler_ = static_cast<HandlerType*>(subclass.lookup_handler(*receiver_.get(), msgId));
+    handler_ = static_cast<HandlerType*>(subclass.lookup_handler(*receiver_.get(), msg_id));
 
     if (!handler_) // Receiver possibly out of sync with the broker
       return nullptr;
 
+    if (executor_ptr executor_override = receiver_->lookup_executor_override(msg_id))
+      receiver_executor_ = std::move(executor_override);
+    else
+      receiver_executor_ = receiver_->default_executor;
+
     // Save whether we're on the same executor. Useful for some optimizations (lock and queue elision)
-    same_executor_ = receiver_->executor_id == component_.executor_id;
+    same_executor_ = component_.default_executor.get() == receiver_executor_.get();
+
     return handler_;
   }
 
@@ -69,6 +79,7 @@ public:
     handler_ = nullptr;
     receivers_.reset();
     receiver_.reset();
+    receiver_executor_.reset();
   }
 
   template<typename... ArgumentTypes>
@@ -82,6 +93,10 @@ public:
     return same_executor_;
   }
 
+  executor_ptr& receiver_executor() {
+    return receiver_executor_;
+  }
+
   std::shared_ptr<component>& receiver() {
     return receiver_;
   }
@@ -89,11 +104,6 @@ public:
 private:
   broker& broker_;
   component& component_;
-
-  std::weak_ptr<message_receivers> receivers_;
-  std::shared_ptr<component> receiver_;
-
-  bool same_executor_ = false;
 };
 
 // Type aliases to make the types a bit shorter
@@ -111,8 +121,8 @@ class sync_mono_ref : public sync_mono_ref_base<MessageType, sync_mono_ref<Messa
 public:
   sync_mono_ref(broker& broker, component& component) : sync_mono_ref_base<MessageType, sync_mono_ref<MessageType>>(broker, component) {}
 
-  void* lookup_handler(component& comp, message_id msgId) {
-    return comp.lookup_sync_handler(msgId);
+  void* lookup_handler(component& comp, message_id msg_id) {
+    return comp.lookup_sync_handler(msg_id);
   }
 };
 
@@ -121,8 +131,8 @@ class async_mono_ref : public async_mono_ref_base<MessageType, async_mono_ref<Me
 public:
   async_mono_ref(broker& broker, component& component) : async_mono_ref_base<MessageType, async_mono_ref<MessageType>>(broker, component) {}
 
-  void* lookup_handler(component& comp, message_id msgId) {
-    return comp.lookup_async_handler(msgId);
+  void* lookup_handler(component& comp, message_id msg_id) {
+    return comp.lookup_async_handler(msg_id);
   }
 };
 

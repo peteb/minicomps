@@ -84,7 +84,7 @@ public:
         continue;
 
       // Save whether we're on the same executor. Useful for some optimizations (lock and queue elision)
-      bool same_executor = receiver->executor_id == component_.executor_id;
+      bool same_executor = receiver->default_executor.get() == component_.default_executor.get();
 
       receiver_handlers_.emplace_back(std::move(receiver), handler, same_executor);
     }

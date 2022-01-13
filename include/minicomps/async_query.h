@@ -115,7 +115,7 @@ private:
         component* sender;
       };
 
-      request_data request{std::move(arguments), std::move(callback), owning_component_->executor, std::move(lifetime), owning_component_, receiving_component.get()};
+      request_data request{std::move(arguments), std::move(callback), owning_component_->default_executor, std::move(lifetime), owning_component_, receiving_component.get()};
 
       // Note: handler as captured here could become a dangling pointer if the message handler is removed/replaced
       auto request_task = [handler] (void* data) {
@@ -136,7 +136,7 @@ private:
         std::apply(*handler, std::tuple_cat(std::move(request.arguments), std::make_tuple(std::move(result_handler))));
       };
 
-      receiving_component->executor->enqueue_work(std::move(request_task), std::move(request));
+      handler_->receiver_executor()->enqueue_work(std::move(request_task), std::move(request));
 
       if (receiving_component->listener)
         receiving_component->listener->on_enqueue(owning_component_, receiving_component.get(), msg_info_, message_type::REQUEST);
