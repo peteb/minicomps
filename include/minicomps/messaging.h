@@ -26,6 +26,7 @@ message_id get_message_id() {
 class message_info {
 public:
   const char* name;
+  message_id id;
 };
 
 template<typename T>
@@ -118,8 +119,8 @@ const message_info& get_message_info() {
     static int uniq;                                                                        \
     return message_id{reinterpret_cast<uintptr_t>(&uniq)};                                  \
   }                                                                                         \
-  const message_info& get_message_info(name*) {                                             \
-    static message_info msg{str(name)};                                                     \
+  const message_info& get_message_info(name* ptr) {                                         \
+    static message_info msg{str(name), get_message_id(ptr)};                                \
     return msg;                                                                             \
   }                                                                                         \
 

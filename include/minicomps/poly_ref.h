@@ -11,12 +11,14 @@
 
 namespace mc {
 
+// TODO: merge with mono_ref
 class poly_ref {
 public:
   virtual ~poly_ref() = default;
   virtual void reset() = 0;
+  virtual void force_resolve() = 0;
+  virtual dependency_info create_dependency_info() const = 0;
 };
-
 
 template<typename MessageType>
 class poly_ref_base : public poly_ref {
@@ -35,7 +37,7 @@ public:
       , same_executor_(same_executor)
       {}
 
-    std::shared_ptr<component>& receiver() {
+    const std::shared_ptr<component>& receiver() const {
       return receiving_component_;
     }
 
@@ -95,6 +97,26 @@ public:
   virtual void reset() override {
     receivers_.reset();
     receiver_handlers_.clear();
+  }
+
+  virtual void force_resolve() override {
+    (void)lookup();
+  }
+
+  virtual dependency_info create_dependency_info() const override {
+    // TODO: when we move to c++20, change struct initialization to use named field init
+
+    dependency_info info = {
+      dependency_info::EXPORT,
+      dependency_info::ASYNC_POLY,
+      get_message_info<MessageType>()
+    };
+
+    for (const receiver_handler& handler : receiver_handlers_) {
+      info.resolved_targets.push_back(handler.receiver().get());
+    }
+
+    return info;
   }
 
 private:

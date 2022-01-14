@@ -15,6 +15,8 @@ class mono_ref {
 public:
   virtual ~mono_ref() = default;
   virtual void reset() = 0;
+  virtual void force_resolve() = 0;
+  virtual dependency_info create_dependency_info() const = 0;
 };
 
 /// References a component's handler code for a specific MessageType. Expects only one
@@ -80,6 +82,21 @@ public:
     receivers_.reset();
     receiver_.reset();
     receiver_executor_.reset();
+  }
+
+  virtual void force_resolve() override {
+    (void)lookup();
+  }
+
+  virtual dependency_info create_dependency_info() const override {
+    // TODO: when we move to c++20, change struct initialization to use named field init
+
+    return {
+      dependency_info::IMPORT,
+      dependency_info::ASYNC_MONO, // TODO: override per async/sync
+      get_message_info<MessageType>(),
+      {receiver_.get()}
+    };
   }
 
   template<typename... ArgumentTypes>

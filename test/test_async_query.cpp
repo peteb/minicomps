@@ -265,6 +265,18 @@ TEST(async_query, with_custom_executor_triggers_function_later) {
 
 // TODO: test async call for function with customized executor but components are on different executors
 // TODO: test sync call for function with customized executor
+
+TEST(async_query, looked_up_queries_show_up_in_dependencies) {
+  broker broker;
+  executor_ptr exec = std::make_shared<executor>();
+  component_registry registry;
+  auto sender = registry.create<send_component>(broker, exec);
+
+  auto deps = sender->describe_dependencies();
+
+  ASSERT_EQ(deps.size(), 4);
+
+}
 // TODO: more extensive callback testing
 }
 

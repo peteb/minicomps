@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <mutex>
 #include <string>
+#include <vector>
 
 namespace mc {
 
@@ -30,6 +31,23 @@ public:
 
   virtual void on_enqueue(const component* sender, const component* receiver, const message_info& info, message_type type) {}
   virtual void on_invoke(const component* sender, const component* receiver, const message_info& info, message_type type) {}
+};
+
+struct dependency_info {
+  enum {
+    EXPORT,
+    IMPORT
+  } direction;
+
+  enum {
+    ASYNC_MONO,
+    SYNC_MONO,
+    ASYNC_POLY
+  } type;
+
+  const message_info& msg_info;
+
+  std::vector<component*> resolved_targets;
 };
 
 /// Components talk to other components by sending messages through a Broker.
@@ -56,6 +74,7 @@ public:
   virtual void* lookup_sync_handler(message_id msg_id) = 0;
   virtual void* lookup_async_handler(message_id msg_id) = 0;
   virtual executor_ptr lookup_executor_override(message_id msg_id) = 0;
+  virtual std::vector<dependency_info> describe_dependencies() = 0;
 
   const std::string name;               /// Class name of the component's implementation
   const executor_ptr default_executor;  /// Handles incoming async requests and responses

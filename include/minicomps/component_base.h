@@ -57,6 +57,7 @@ public:
     using wrapper_type = typename query_info<MessageType>::handler_wrapper_type;
     sync_handlers_[msg_id] = std::make_shared<wrapper_type>(std::move(handler));
     // TODO: remove from queryHandlers
+    published_dependencies_.push_back({dependency_info::EXPORT, dependency_info::SYNC_MONO, get_message_info<MessageType>(), {}});
   }
 
   /// Publishes a member function as a synchronous query
@@ -77,6 +78,7 @@ public:
     async_handlers_[msg_id] = std::make_shared<async_wrapper_type>(std::move(handler));
     async_executor_overrides_[msg_id] = executor_override;
     // TODO: remove from queryHandlers
+    published_dependencies_.push_back({dependency_info::EXPORT, dependency_info::ASYNC_MONO, get_message_info<MessageType>(), {}});
   }
 
   /// Publishes a member function as an asynchronous query
@@ -122,6 +124,7 @@ public:
     using handler_type = decltype(message_handler_event_impl<MessageType>{}.handler);
     async_handlers_[msg_id] = std::make_shared<message_handler_event_impl<MessageType>>(std::move(handler));
     // TODO: remove from queryHandlers
+    published_dependencies_.push_back({dependency_info::IMPORT, dependency_info::ASYNC_POLY, get_message_info<MessageType>(), {}});
   }
 
   /// Publishes a member function as an event listener for asynchronous events.
@@ -183,6 +186,26 @@ public:
     return iter->second;
   }
 
+  virtual std::vector<dependency_info> describe_dependencies() override {
+    std::vector<dependency_info> infos;
+
+    for (auto& mono : mono_refs_) {
+      mono->force_resolve();
+      infos.push_back(mono->create_dependency_info());
+    }
+
+    for (auto& poly : poly_refs_) {
+      poly->force_resolve();
+      infos.push_back(poly->create_dependency_info());
+    }
+
+    for (const dependency_info& info : published_dependencies_) {
+      infos.push_back(info);
+    }
+
+    return infos;
+  }
+
 private:
   broker& broker_;
   std::unordered_map<message_id, std::shared_ptr<message_handler>> sync_handlers_;
@@ -191,6 +214,8 @@ private:
 
   std::vector<std::shared_ptr<mono_ref>> mono_refs_; // Reset shared_ptrs in mono_refs to avoid memory leaks at shutdown
   std::vector<std::shared_ptr<poly_ref>> poly_refs_; // ... and in poly_refs
+
+  std::vector<dependency_info> published_dependencies_;
   bool published_ = false;
 };
 

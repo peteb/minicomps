@@ -12,10 +12,9 @@
 - **Filter handlers** can be registered for async queries (can be used for mocks, spies, error injection, etc)
 - Per-query executor to enable **flow control**
 - Component-level listeners for invocations (can be used to collect request duration, logging, tracing, generating sequence diagrams, etc)
+- Dependency reflection (can be used to enforce interaction policies, verify dependencies, generate dependency graphs, etc)
 - Periodical pumping and async operations can be skipped if the handling component has been synchronously locked (TODO)
-- Startup dependency verification (TODO)
 - Async function invocation using "minicoros" (a library that simplifies futures/promises) (TODO)
-- Dependency reflection (can be used to enforce interaction policies, generate dependency graphs, etc) (TODO)
 
 ## Examples
 ```cpp
@@ -147,7 +146,7 @@ public:
     {}
 
   virtual void publish() override {
-    publish_async_event_listener<ContactUpdated>([this](const ContactUpdated& event) {
+    subscribe_event<ContactUpdated>([this](const ContactUpdated& event) {
       std::cout << "Contact " << event.contactId << " updated" << std::endl;
     });
   }
