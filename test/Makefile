@@ -1,6 +1,6 @@
 CXX = clang++
 CXXFLAGS = -std=c++17 -fno-exceptions -fno-rtti -fno-threadsafe-statics -I../include/ -I../tools/ -I../minicoros/include/ -O3
-obj_files = ../src/component.o ../src/executor.o ../src/broker.o ../tools/testing.o test_broker.o  test_event.o test_sync_query.o test_async_query.o test_async_query_filter.o \
+obj_files = ../src/component.o ../src/executor.o ../src/broker.o ../tools/testing.o  test_example_request_coalescing.o test_broker.o  test_event.o test_sync_query.o test_async_query.o test_async_query_filter.o \
 						test_any_aligned_storage.o \
 					 test_event_perf.o test_async_query_perf.o test_sync_query_perf.o
 

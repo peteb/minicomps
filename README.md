@@ -221,6 +221,11 @@ public:
     result(123);
   }
 
+  void update() {
+    if (time_to_run_operations())
+      operation_executor_->execute();
+  }
+
 private:
   executor_ptr operation_executor_ = std::make_shared<executor>();
 };
@@ -250,4 +255,3 @@ As measured on my MacBook Pro from 2013 through Docker. Might not be up-to-date,
 | Async events SPSC from 1 thread to 1 receiver thread      |   4,890K/s | 0 (amortized)| ~0.43               |
 
 - Note: the asynchronous messaging system is almost as simple as they come; for example, the queue is based on std::vector protected by a std::mutex, and there's a fair bit of lock contention (as can be seen by the lock failures in the table above)
-

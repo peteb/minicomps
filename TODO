@@ -2,6 +2,7 @@
 * Support for communication policies
 * Mutable responses (responses containing ptrs/refs)
 
+* Hierarchical brokers
 * Build with more errors activated
 * Flag for forcing async even if sender and receiver are on the same executor
 * Minicoros support
@@ -10,6 +11,7 @@
 * Async queries and events need to copy their arguments/decay
 * Protection against weird edge cases; query getting published twice, etc
 * Register sync-looking code as async
+* Filter handlers for sync queries
 
 * TODOs in code
 * Test compilation performance
