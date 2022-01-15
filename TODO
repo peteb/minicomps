@@ -1,8 +1,10 @@
 * Support for communication policies
-* Minicoros support
+* Minicoros support for sender
+* Minicoros support for receiver
 * Mutable responses (responses containing ptrs/refs)
 * Measure compilation performance
 
+* Try out using the executor lock instead of the component lock, then add "try_execute"
 * Build with more errors activated
 * Flag for forcing async even if sender and receiver are on the same executor
 * any_unaligned_storage should fall back to heap allocated if needed

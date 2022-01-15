@@ -94,7 +94,7 @@ public:
   async_query<LongOperation> long_operation;
 };
 
-TEST(test_example_request_coalescing, prepended_query_is_invoked_and_proceeds) {
+TEST(test_example_request_coalescing, multiple_concurrent_requests_are_coalesced) {
   // Given
   broker broker;
   executor_ptr exec = std::make_shared<executor>();

@@ -23,13 +23,24 @@ namespace mc {
 ///     executor and the promise resolving is enqueued on the sending component's executor
 template<typename MessageType>
 class async_query {
-  async_mono_ref<MessageType>* handler_;
-
 public:
   async_query(async_mono_ref<MessageType>* handler, component* owning_component)
     : handler_(handler)
     , owning_component_(owning_component)
-    , msg_info_(get_message_info<MessageType>()) {}
+    , msg_info_(get_message_info<MessageType>())
+    , lifetime_(owning_component->default_lifetime)
+    {}
+
+  /// async_queries either have to be created using a factory function in component_base or by using an existing async_query together with a lifetime
+  async_query(const async_query&) = delete;
+
+  /// Create an async_query based on another, but with a different lifetime. Useful for sessions etc.
+  async_query(const async_query& other, const lifetime& life)
+    : handler_(other.handler_)
+    , owning_component_(other.owning_component_)
+    , msg_info_(other.msg_info_)
+    , lifetime_(life)
+    {}
 
   using result_type = typename signature_util<typename query_info<MessageType>::signature>::return_type;
 
@@ -82,7 +93,7 @@ public:
   /// non-pack parameters (the callback) after a parameter pack.
   template<typename... Args>
   query_invoker<Args...> operator() (Args&&... arguments) {
-    return query_invoker<Args...>(*this, owning_component_->default_lifetime.create_weak_ptr(), std::forward<Args>(arguments)...);
+    return query_invoker<Args...>(*this, lifetime_.create_weak_ptr(), std::forward<Args>(arguments)...);
   }
 
 private:
@@ -143,8 +154,10 @@ private:
     }
   }
 
+  async_mono_ref<MessageType>* handler_;
   component* owning_component_;
   const message_info& msg_info_;
+  const lifetime& lifetime_;
 };
 
 }
