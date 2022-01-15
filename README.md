@@ -11,10 +11,10 @@
 - Asynchronous queries can be **canceled**, both manually and automatically, and the handling component can check for cancellations
 - **Filter handlers** can be registered for async queries (can be used for mocks, spies, error injection, etc)
 - Per-query executor to enable **flow control**
+- Async function invocation using **minicoros** (a library that simplifies futures/promises)
 - Component-level listeners for invocations (can be used to collect request duration, logging, tracing, generating sequence diagrams, etc)
 - Dependency reflection (can be used to enforce interaction policies, verify dependencies, generate dependency graphs, etc)
 - Periodical pumping and async operations can be skipped if the handling component has been synchronously locked (TODO)
-- Async function invocation using "minicoros" (a library that simplifies futures/promises) (TODO)
 
 ## Examples
 ```cpp
@@ -151,7 +151,6 @@ public:
     });
   }
 };
-
 ```
 
 ### Cancellation
@@ -198,6 +197,40 @@ public:
 private:
   async_query<LongOperation> long_operation_;
   lifetime operation_lifetime_;
+};
+```
+
+### Coroutines and Sessions
+```c++
+DECLARE_QUERY(LongOperation, int(int));
+
+class send_component : public component_base<send_component> {
+public:
+  send_component(broker& broker, executor_ptr executor)
+    : component_base("sender", broker, executor)
+    , long_operation(lookup_async_query<LongOperation>())
+    {}
+
+  class session {
+  public:
+    session(const async_query<LongOperation>& long_operation)  // Inject the function that the session needs
+      : long_operation_(long_operation, lifetime_)             // We cannot capture the function without providing our own lifetime
+      {}
+
+    void frob() {
+      long_operation_(123)
+        .then([this](int value) {
+          // Won't get called if our session object has been deleted
+        });
+    }
+
+  private:
+    lifetime lifetime_;
+    coroutine_query<LongOperation> long_operation_;
+  };
+
+  async_query<LongOperation> long_operation;
+  std::shared_ptr<session> current_session = std::make_shared<session>(long_operation);
 };
 ```
 

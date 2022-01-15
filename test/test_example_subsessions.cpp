@@ -9,6 +9,7 @@
 #include <minicomps/messaging.h>
 #include <minicomps/executor.h>
 #include <minicomps/testing.h>
+#include <minicomps/coroutine_query.h>
 
 #include <unordered_map>
 #include <memory>
@@ -53,14 +54,14 @@ public:
       {}
 
     void frob() {
-      long_operation(123).with_callback([this](mc::concrete_result<int>&& value) {
-        std::cout << "got value " << *value.get_value() << std::endl;
-        received_value = true;
-      });
+      long_operation(123)
+        .then([this](int value) {
+          received_value = true;
+        });
     }
 
     lifetime lifetime_;
-    async_query<LongOperation> long_operation;
+    coroutine_query<LongOperation> long_operation;
     bool received_value = false;
   };
 
@@ -91,7 +92,6 @@ TEST(test_example_subsessions, responses_are_ignored_when_session_goes_out_of_sc
   (*receiver->result_callback)(123);
 
   ASSERT_FALSE(sender->current_session->received_value);
-
 }
 
 }

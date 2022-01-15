@@ -5,7 +5,6 @@
 
 #include <minicomps/executor.h>
 #include <minicomps/mono_ref.h>
-#include <minicoros/coroutine.h>
 #include <minicomps/messaging.h>
 #include <minicomps/callback.h>
 #include <minicomps/component.h>
@@ -33,6 +32,8 @@ public:
 
   /// async_queries either have to be created using a factory function in component_base or by using an existing async_query together with a lifetime
   async_query(const async_query&) = delete;
+
+  async_query(async_query&&) = default;
 
   /// Create an async_query based on another, but with a different lifetime. Useful for sessions etc.
   async_query(const async_query& other, const lifetime& life)

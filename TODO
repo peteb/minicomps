@@ -1,9 +1,10 @@
 * Support for communication policies
 * Minicoros support for sender
-* Minicoros support for receiver
 * Mutable responses (responses containing ptrs/refs)
 * Measure compilation performance
+* Apply changes to minicoros
 
+* Macros for query declarations using "gmock" style: DECLARE_QUERY(void, MyQuery, (int param1, int param2))
 * Try out using the executor lock instead of the component lock, then add "try_execute"
 * Build with more errors activated
 * Flag for forcing async even if sender and receiver are on the same executor
@@ -13,6 +14,7 @@
 * Protection against weird edge cases; query getting published twice, etc
 * Register sync-looking code as async
 * Filter handlers for sync queries
+* Const parameters, references, etc
 
 * Refactor get_message_id and get_message_info
 * TODOs in code

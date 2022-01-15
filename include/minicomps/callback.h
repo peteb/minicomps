@@ -3,10 +3,11 @@
 #ifndef MINICOMPS_CALLBACK_H
 #define MINICOMPS_CALLBACK_H
 
-#include <minicoros/types.h>
 #include <minicomps/component.h>
 #include <minicomps/messaging.h>
 #include <minicomps/lifetime.h>
+
+#include <minicoros/types.h>
 
 #include <functional>
 #include <memory>
