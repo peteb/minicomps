@@ -4,6 +4,8 @@
 #define MINICOMPS_MESSAGING_H_
 
 #include <minicomps/executor.h>
+#include <minicoros/continuation_chain.h>
+#include <minicoros/types.h>
 
 #include <cstdint>
 #include <functional>
@@ -145,5 +147,7 @@ const message_info& get_message_info() {
 
 #define DEFINE_EVENT(name) MESSAGE_DEFINITION(name)
 
+#define DECLARE_INTERFACE(name) class name; MESSAGE_DECLARATION(name)
+#define DEFINE_INTERFACE(name) MESSAGE_DEFINITION(name)
 
 #endif // MINICOMPS_MESSAGING_H_

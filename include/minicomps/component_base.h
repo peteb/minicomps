@@ -13,6 +13,9 @@
 #include <minicomps/event.h>
 #include <minicomps/mono_ref.h>
 #include <minicomps/poly_ref.h>
+#include <minicomps/interface_ref.h>
+#include <minicomps/interface.h>
+#include <minicomps/if_async_query.h>
 
 #include <cstdint>
 #include <iostream>
@@ -89,6 +92,22 @@ public:
     }, std::move(executor_override));
   }
 
+  template<typename InterfaceType>
+  void publish_interface() {
+    const message_id msg_id = get_message_id<InterfaceType>();
+    broker_.associate(msg_id, shared_from_this());
+    interfaces_[msg_id] = static_cast<InterfaceType*>(static_cast<SubclassType*>(this));
+  }
+
+  template<typename Signature, typename... ArgumentTypes>
+  void publish_async_query(if_async_query<Signature>& interface_query, void(SubclassType::*memfun)(ArgumentTypes...), executor_ptr executor_override = nullptr) {
+    std::weak_ptr<executor> chosen_executor = executor_override ? executor_override : default_executor;
+
+    interface_query.publish([this, memfun] (ArgumentTypes&&... arguments) {
+      (static_cast<SubclassType*>(this)->*memfun)(std::forward<ArgumentTypes>(arguments)...);
+    }, shared_from_this(), std::move(chosen_executor));
+  }
+
   /// Adds a handler "on top" of an existing handler. Decides whether the next
   /// handler should run or not.
   template<typename MessageType, typename CallbackType>
@@ -156,6 +175,13 @@ public:
     return event<MessageType>(handler_ref.get(), this);
   };
 
+  template<typename InterfaceType>
+  interface<InterfaceType> lookup_interface() {
+    auto interface_ref = std::make_shared<interface_ref_base<InterfaceType>>(broker_, *this);
+    interface_refs_.push_back(interface_ref);
+    return interface<InterfaceType>(interface_ref.get());
+  }
+
   virtual void* lookup_sync_handler(message_id msg_id) override {
     std::lock_guard<std::recursive_mutex> lg(lock);
 
@@ -174,6 +200,16 @@ public:
       return nullptr;
 
     return iter->second->get_handler_ptr();
+  }
+
+  virtual void* lookup_interface(message_id msg_id) override {
+    std::lock_guard<std::recursive_mutex> lg(lock);
+
+    auto iter = interfaces_.find(msg_id);
+    if (iter == std::end(interfaces_))
+      return nullptr;
+
+    return iter->second;
   }
 
   virtual executor_ptr lookup_executor_override(message_id msg_id) override {
@@ -210,10 +246,12 @@ private:
   broker& broker_;
   std::unordered_map<message_id, std::shared_ptr<message_handler>> sync_handlers_;
   std::unordered_map<message_id, std::shared_ptr<message_handler>> async_handlers_;
+  std::unordered_map<message_id, void*> interfaces_;
   std::unordered_map<message_id, executor_ptr> async_executor_overrides_;
 
   std::vector<std::shared_ptr<mono_ref>> mono_refs_; // Reset shared_ptrs in mono_refs to avoid memory leaks at shutdown
-  std::vector<std::shared_ptr<poly_ref>> poly_refs_; // ... and in poly_refs
+  std::vector<std::shared_ptr<poly_ref>> poly_refs_; // ... and in poly_refs TODO: common base class
+  std::vector<std::shared_ptr<interface_ref>> interface_refs_;
 
   std::vector<dependency_info> published_dependencies_;
   bool published_ = false;

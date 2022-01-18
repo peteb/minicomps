@@ -2,13 +2,14 @@
 
 **`Minicomps` is a C++17 framework for synchronous and asynchronous communication between components**. It supports the following features:
 
-- **Queries** for calling into other components to get a result or return value
-- **Events** for raising events that have happened and for disseminating data
-- Components are **decentralized and loosely coupled** due to name-based function lookup
-- Queries and events do **no memory allocations**
+- **Queries** for request/response patterns
+- **Events** for pub/sub patterns
+- Components are **decentralized and loosely coupled** due to name-based lookup
+- Queries and events are **free from memory allocations**
 - **Automatic locking** on component level for synchronous queries
-- All actions are **thread safe** (unless explicitly overridden by the user)
+- All actions are **thread safe** unless explicitly overridden by the user
 - Asynchronous queries can be **canceled**, both manually and automatically, and the handling component can check for cancellations
+- **Interfaces** for an OOP feeling
 - **Filter handlers** can be registered for async queries (can be used for mocks, spies, error injection, etc)
 - Per-query executor to enable **flow control**
 - Async function invocation using **minicoros** (a library that simplifies futures/promises)
@@ -84,6 +85,51 @@ public:
 private:
   async_query<Sum> sum_;
   sync_query<UpdateValues> update_values_;
+};
+```
+
+### Interfaces
+```cpp
+DECLARE_INTERFACE(receiver); DEFINE_INTERFACE(receiver);
+
+class receiver {
+public:
+  ASYNC_QUERY(frobnicate, void(int));
+};
+
+class receiver_component_impl : public component_base<receiver_component_impl>, public receiver {
+public:
+  receiver_component_impl(broker& broker, executor_ptr executor)
+    : component_base("receiver_component", broker, executor)
+    {}
+
+  virtual void publish() override {
+    publish_interface<receiver>();
+    publish_async_query(frobnicate, &receiver_component_impl::frobnicate_impl);
+  }
+
+  void frobnicate_impl(int value, callback_result<void>&& result) {
+    // ...
+  }
+};
+
+
+class sender_component_impl : public component_base<sender_component_impl> {
+public:
+  sender_component_impl(broker& broker, executor_ptr executor)
+    : component_base("sender_component", broker, executor)
+    , receiver_(lookup_interface<receiver>())
+  {}
+
+  void frob() {
+    receiver_->frobnicate(123)
+      .then([] {
+        // ...
+      });
+  }
+
+private:
+  interface<receiver> receiver_;
 };
 ```
 

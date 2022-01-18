@@ -1,8 +1,13 @@
+* Fix coroutines hardcoded to return int
+* Interface support for sync queries
+* Copy interfaces with lifetime
+* Interface support for events
 * Support for communication policies
 * Minicoros support for sender
 * Mutable responses (responses containing ptrs/refs)
 * Measure compilation performance
 * Apply changes to minicoros
+* Should Interfaces be renamed to Components?
 
 * Macros for query declarations using "gmock" style: DECLARE_QUERY(void, MyQuery, (int param1, int param2))
 * Try out using the executor lock instead of the component lock, then add "try_execute"
@@ -15,7 +20,10 @@
 * Register sync-looking code as async
 * Filter handlers for sync queries
 * Const parameters, references, etc
+* Investigate propagation of cancellations
+* Caching
 
+* Load balancing?
 * Refactor get_message_id and get_message_info
 * TODOs in code
 * Call sync queries using async

@@ -42,7 +42,8 @@ struct dependency_info {
   enum {
     ASYNC_MONO,
     SYNC_MONO,
-    ASYNC_POLY
+    ASYNC_POLY,
+    INTERFACE
   } type;
 
   const message_info& msg_info;
@@ -73,6 +74,7 @@ public:
   virtual void unpublish() {}
   virtual void* lookup_sync_handler(message_id msg_id) = 0;
   virtual void* lookup_async_handler(message_id msg_id) = 0;
+  virtual void* lookup_interface(message_id msg_id) = 0;
   virtual executor_ptr lookup_executor_override(message_id msg_id) = 0;
   virtual std::vector<dependency_info> describe_dependencies() = 0;
 
@@ -83,6 +85,9 @@ public:
 
   std::recursive_mutex lock;    /// The component-level lock, used for synchronous queries across threads of execution
 };
+
+void set_current_component(component*);
+component* get_current_component();
 
 }
 
