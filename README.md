@@ -97,20 +97,23 @@ public:
   ASYNC_QUERY(frobnicate, void(int));
 };
 
-class receiver_component_impl : public component_base<receiver_component_impl>, public receiver {
+class receiver_component_impl : public component_base<receiver_component_impl> {
 public:
   receiver_component_impl(broker& broker, executor_ptr executor)
     : component_base("receiver_component", broker, executor)
     {}
 
   virtual void publish() override {
-    publish_interface<receiver>();
-    publish_async_query(frobnicate, &receiver_component_impl::frobnicate_impl);
+    publish_interface(receiver_);
+    publish_async_query(receiver_.frobnicate, &receiver_component_impl::frobnicate_impl);
   }
 
   void frobnicate_impl(int value, callback_result<void>&& result) {
     // ...
   }
+
+private:
+  receiver receiver_;
 };
 
 

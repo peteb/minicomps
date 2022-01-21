@@ -93,10 +93,10 @@ public:
   }
 
   template<typename InterfaceType>
-  void publish_interface() {
+  void publish_interface(InterfaceType& impl) {
     const message_id msg_id = get_message_id<InterfaceType>();
     broker_.associate(msg_id, shared_from_this());
-    interfaces_[msg_id] = static_cast<InterfaceType*>(static_cast<SubclassType*>(this));
+    interfaces_[msg_id] = &impl;
   }
 
   template<typename Signature, typename... ArgumentTypes>

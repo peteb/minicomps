@@ -36,15 +36,15 @@ DEFINE_INTERFACE(receiver_if);
 
 
 // receiver_impl.cpp
-class receiver_component_impl : public component_base<receiver_component_impl>, public receiver_if {
+class receiver_component_impl : public component_base<receiver_component_impl> {
 public:
   receiver_component_impl(broker& broker, executor_ptr executor)
     : component_base("receiver", broker, executor)
     {}
 
   virtual void publish() override {
-    publish_interface<receiver_if>();
-    publish_async_query(frobnicate, &receiver_component_impl::frobnicate_impl);
+    publish_interface(receiver_);
+    publish_async_query(receiver_.frobnicate, &receiver_component_impl::frobnicate_impl);
   }
 
   void frobnicate_impl(int value, callback_result<int>&& result) {
@@ -54,6 +54,9 @@ public:
 
   int received_value = 0;
   std::shared_ptr<callback_result<int>> result_ptr;
+
+private:
+  receiver_if receiver_;
 };
 
 
