@@ -6,7 +6,6 @@
 * Minicoros support for sender
 * Mutable responses (responses containing ptrs/refs)
 * Measure compilation performance
-* Apply changes to minicoros
 * Should Interfaces be renamed to Components?
 * Align non-interface queries with interface ones
 
