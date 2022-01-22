@@ -1,7 +1,7 @@
 /// Copyright 2022 Peter Backman
 
-#ifndef MINICOMPS_ANY_ALIGNED_STORAGE_H_
-#define MINICOMPS_ANY_ALIGNED_STORAGE_H_
+#ifndef MINICOMPS_FIXED_ANY_H_
+#define MINICOMPS_FIXED_ANY_H_
 
 #include <cstddef>
 #include <functional>
@@ -10,17 +10,16 @@
 
 namespace mc {
 
-/// Like a combination of std::any and std::aligned_storage; ie, the type is specified when
-/// writing the data rather than when declaring the object. Types aren't verified, so the client
-/// needs to know that the cast is OK.
+/// Like `std::any` but you can customize the SBO storage size. Falls back to memory allocation if the storage
+/// is too small. No type checking, client needs to know that it's accessing the same type as was written.
 template<std::size_t Length>
-class any_aligned_storage {
+class fixed_any {
 public:
-  any_aligned_storage() {}
-  any_aligned_storage(any_aligned_storage<Length>&& other) {assign(std::move(other)); }
-  ~any_aligned_storage() {destroy(); }
+  fixed_any() {}
+  fixed_any(fixed_any<Length>&& other) {assign(std::move(other)); }
+  ~fixed_any() {destroy(); }
 
-  any_aligned_storage& assign(any_aligned_storage<Length>&& other) {
+  fixed_any& assign(fixed_any<Length>&& other) {
     destroy();
 
     if (other.aligned_ptr_)
@@ -39,7 +38,7 @@ public:
   }
 
   template<typename T>
-  any_aligned_storage& assign(T&& value) {
+  fixed_any& assign(T&& value) {
     destroy();
 
     if constexpr(sizeof(T) + alignof(T) - 1 <= sizeof(storage_)) {
@@ -130,4 +129,4 @@ private:
 
 }
 
-#endif // MINICOMPS_ANY_ALIGNED_STORAGE_H_
+#endif // MINICOMPS_FIXED_ANY_H_

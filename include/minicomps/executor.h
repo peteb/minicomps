@@ -3,7 +3,7 @@
 #ifndef MINICOMPS_EXECUTOR_H_
 #define MINICOMPS_EXECUTOR_H_
 
-#include <minicomps/any_aligned_storage.h>
+#include <minicomps/fixed_any.h>
 
 #include <vector>
 #include <functional>
@@ -55,7 +55,7 @@ private:
   static std::atomic_int num_lock_failures_;
 
   struct task {
-    any_aligned_storage<96> data;
+    fixed_any<96> data;
     std::function<void(void*)> fun;
 
     void execute() {

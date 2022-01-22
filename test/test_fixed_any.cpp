@@ -6,7 +6,7 @@
 #include <minicomps/component_base.h>
 #include <minicomps/broker.h>
 #include <minicomps/executor.h>
-#include <minicomps/any_aligned_storage.h>
+#include <minicomps/fixed_any.h>
 
 #include <memory>
 #include <cstdint>
@@ -35,21 +35,21 @@ public:
   bool* destroyed;
 };
 
-TEST(any_aligned_storage, can_store_and_access_int) {
-  any_aligned_storage<64> aas;
+TEST(fixed_any, can_store_and_access_int) {
+  fixed_any<64> aas;
 
   aas.assign(123);
 
   ASSERT_EQ(*aas.get<int>(), 123);
 }
 
-TEST(any_aligned_storage, empty_cleans_up_cleanly) {
-  any_aligned_storage<64> aas;
+TEST(fixed_any, empty_cleans_up_cleanly) {
+  fixed_any<64> aas;
 }
 
-TEST(any_aligned_storage, calls_destructor_when_assigned) {
+TEST(fixed_any, calls_destructor_when_assigned) {
   bool destroyed = false;
-  any_aligned_storage<64> aas;
+  fixed_any<64> aas;
   aas.assign(destructable(&destroyed));
 
   ASSERT_EQ(destroyed, false);
@@ -57,11 +57,11 @@ TEST(any_aligned_storage, calls_destructor_when_assigned) {
   ASSERT_EQ(destroyed, true);
 }
 
-TEST(any_aligned_storage, does_not_allocate) {
+TEST(fixed_any, does_not_allocate) {
   alloc_counter allocs;
 
   // Given
-  any_aligned_storage<64> aas;
+  fixed_any<64> aas;
   testing::stop_optimizations(&aas);
 
   // When
@@ -82,11 +82,11 @@ struct uint32_buffer_type {
   uint32_t buf[1024];
 };
 
-TEST(any_aligned_storage, larger_than_storage_with_byte_alignment_allocates) {
+TEST(fixed_any, larger_than_storage_with_byte_alignment_allocates) {
   {
     // Empty storage should allocate
     alloc_counter allocs;
-    any_aligned_storage<0> aas; testing::stop_optimizations(&aas);
+    fixed_any<0> aas; testing::stop_optimizations(&aas);
 
     aas.assign(uint8_buffer_type{});
 
@@ -96,7 +96,7 @@ TEST(any_aligned_storage, larger_than_storage_with_byte_alignment_allocates) {
   {
     // Exactly below the requirement allocates
     alloc_counter allocs;
-    any_aligned_storage<1023> aas; testing::stop_optimizations(&aas);
+    fixed_any<1023> aas; testing::stop_optimizations(&aas);
 
     aas.assign(uint8_buffer_type{});
 
@@ -106,7 +106,7 @@ TEST(any_aligned_storage, larger_than_storage_with_byte_alignment_allocates) {
   {
     // Exactly on the requirement doesn't allocate
     alloc_counter allocs;
-    any_aligned_storage<1024> aas; testing::stop_optimizations(&aas);
+    fixed_any<1024> aas; testing::stop_optimizations(&aas);
 
     aas.assign(uint8_buffer_type{});
 
@@ -114,11 +114,11 @@ TEST(any_aligned_storage, larger_than_storage_with_byte_alignment_allocates) {
   }
 }
 
-TEST(any_aligned_storage, larger_than_storage_with_4byte_alignment_allocates) {
+TEST(fixed_any, larger_than_storage_with_4byte_alignment_allocates) {
   {
     // Empty storage should allocate
     alloc_counter allocs;
-    any_aligned_storage<0> aas; testing::stop_optimizations(&aas);
+    fixed_any<0> aas; testing::stop_optimizations(&aas);
 
     aas.assign(uint32_buffer_type{});
 
@@ -128,7 +128,7 @@ TEST(any_aligned_storage, larger_than_storage_with_4byte_alignment_allocates) {
   {
     // Exactly below the requirement allocates
     alloc_counter allocs;
-    any_aligned_storage<4098> aas; testing::stop_optimizations(&aas);
+    fixed_any<4098> aas; testing::stop_optimizations(&aas);
 
     aas.assign(uint32_buffer_type{});
 
@@ -138,7 +138,7 @@ TEST(any_aligned_storage, larger_than_storage_with_4byte_alignment_allocates) {
   {
     // Exactly on the requirement doesn't allocate
     alloc_counter allocs;
-    any_aligned_storage<4099> aas; testing::stop_optimizations(&aas);
+    fixed_any<4099> aas; testing::stop_optimizations(&aas);
 
     aas.assign(uint32_buffer_type{});
 
@@ -146,11 +146,11 @@ TEST(any_aligned_storage, larger_than_storage_with_4byte_alignment_allocates) {
   }
 }
 
-TEST(any_aligned_storage, larger_than_storage_keeps_value) {
+TEST(fixed_any, larger_than_storage_keeps_value) {
   // Given
   uint8_buffer_type object = {};
   object.buf[1000] = '!';
-  any_aligned_storage<0> aas;
+  fixed_any<0> aas;
 
   // When
   aas.assign(std::move(object));
@@ -159,11 +159,11 @@ TEST(any_aligned_storage, larger_than_storage_keeps_value) {
   ASSERT_EQ(aas.get<uint8_buffer_type>()->buf[1000], '!');
 }
 
-TEST(any_aligned_storage, moving_keeps_value) {
-  any_aligned_storage<64> s1;
+TEST(fixed_any, moving_keeps_value) {
+  fixed_any<64> s1;
   s1.assign(12345);
 
-  any_aligned_storage<64> s2 = std::move(s1);
+  fixed_any<64> s2 = std::move(s1);
 
   ASSERT_EQ(*s2.get<int>(), 12345);
 }
