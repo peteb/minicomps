@@ -1,19 +1,18 @@
-* Fix coroutines hardcoded to return int
 * Interface support for sync queries
-* Copy interfaces with lifetime
-* Interface support for events
-* Support for communication policies
+* Align non-interface queries with interface ones
 * Minicoros support for sender
+* Interface support for events
 * Mutable responses (responses containing ptrs/refs)
+* Fix coroutines hardcoded to return int
+* Copy interfaces with lifetime
+* Support for communication policies
 * Measure compilation performance
 * Should Interfaces be renamed to Components?
-* Align non-interface queries with interface ones
 
 * Macros for query declarations using "gmock" style: DECLARE_QUERY(void, MyQuery, (int param1, int param2))
 * Try out using the executor lock instead of the component lock, then add "try_execute"
 * Build with more errors activated
 * Flag for forcing async even if sender and receiver are on the same executor
-* any_unaligned_storage should fall back to heap allocated if needed
 * Well-defined behavior when components are removed in the middle of a call
 * Async queries and events need to copy their arguments/decay
 * Protection against weird edge cases; query getting published twice, etc

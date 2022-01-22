@@ -27,6 +27,7 @@ DECLARE_INTERFACE(receiver_if);
 class receiver_if {
 public:
   ASYNC_QUERY(frobnicate, int(int));
+  ASYNC_QUERY(frobnicate2, int(int));
 };
 
 // receiver.cpp
@@ -45,6 +46,7 @@ public:
   virtual void publish() override {
     publish_interface(receiver_);
     publish_async_query(receiver_.frobnicate, &receiver_component_impl::frobnicate_impl);
+    publish_async_query(receiver_.frobnicate2, &receiver_component_impl::frobnicate2_impl);
   }
 
   void frobnicate_impl(int value, callback_result<int>&& result) {
@@ -52,8 +54,17 @@ public:
     result_ptr = std::make_shared<callback_result<int>>(std::move(result));
   }
 
+  mc::coroutine<int> frobnicate2_impl(int value) {
+    received_value = value;
+
+    return mc::coroutine<int>([this] (mc::promise<int>&& p) {
+      frob2_promise = std::move(p);
+    });
+  }
+
   int received_value = 0;
   std::shared_ptr<callback_result<int>> result_ptr;
+  mc::promise<int> frob2_promise;
 
 private:
   receiver_if receiver_;
@@ -163,6 +174,32 @@ TEST(test_interface_async, different_executors_coroutine_gets_resolved_with_valu
   sender_executor->execute();
 
   ASSERT_EQ(recv_comp_impl->received_value, 123);
+  ASSERT_EQ(received_result, 444);
+}
+
+TEST(test_interface_async, same_executor_coroutine_receiver_and_coroutine_sender_gets_resolved_with_value) {
+  // Given
+  broker broker;
+  executor_ptr exec = std::make_shared<executor>();
+  component_registry registry;
+
+  std::shared_ptr<receiver_component_impl> recv_comp_impl = registry.create<receiver_component_impl>(broker, exec);
+  std::shared_ptr<sender_component_impl> sender = registry.create<sender_component_impl>(broker, exec);
+
+  lifetime lf;
+  int received_result = 0;
+
+  // When/Then
+  sender->receiver->frobnicate2(123)
+    .then([&](int result) {
+      received_result = result;
+    });
+
+  ASSERT_EQ(recv_comp_impl->received_value, 123);
+  ASSERT_EQ(received_result, 0);
+
+  recv_comp_impl->frob2_promise(444);
+
   ASSERT_EQ(received_result, 444);
 }
 

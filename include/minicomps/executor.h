@@ -28,7 +28,7 @@ public:
 
     task& work_item = work_items_.emplace_back();
     work_item.fun = std::move(item);
-    work_item.data = std::move(data);
+    work_item.data.assign(std::move(data));
     mutex_.unlock();
   }
 
@@ -59,7 +59,7 @@ private:
     std::function<void(void*)> fun;
 
     void execute() {
-      fun(data.get_aligned_ptr());
+      fun(data.get_object_ptr());
     }
   };
 

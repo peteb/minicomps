@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <functional>
 #include <memory>
+#include <cassert>
 
 namespace mc {
 
@@ -16,72 +17,100 @@ template<std::size_t Length>
 class any_aligned_storage {
 public:
   any_aligned_storage() {}
-  any_aligned_storage(any_aligned_storage<Length>&& other) {*this = std::move(other); }
+  any_aligned_storage(any_aligned_storage<Length>&& other) {assign(std::move(other)); }
   ~any_aligned_storage() {destroy(); }
 
-  any_aligned_storage& operator =(any_aligned_storage<Length>&& other) {
+  any_aligned_storage& assign(any_aligned_storage<Length>&& other) {
     destroy();
 
-    if (!other.aligned_ptr_)
-      return *this;
+    if (other.aligned_ptr_)
+      aligned_ptr_ = storage_ + other.aligned_diff(); // Diff is OK since the storage is max-aligned
+    else
+      aligned_ptr_ = nullptr;
 
-    aligned_ptr_ = storage_ + other.aligned_diff(); // Diff is OK since the storage is max-aligned
-    other.move_construct_(aligned_ptr_, other.aligned_ptr_);
+    object_ptr_ = other.move_construct_(aligned_ptr_, other.object_ptr_);
+
     other.destroy();
 
-    deleter_ = std::move(other.deleter_); // These aren't deleted by destroy, so is fine
+    destruct_ = std::move(other.destruct_); // These aren't deleted by destroy, so is fine
     move_construct_ = std::move(other.move_construct_);
 
     return *this;
   }
 
   template<typename T>
-  any_aligned_storage& operator =(T&& value) {
+  any_aligned_storage& assign(T&& value) {
     destroy();
 
-    std::size_t used_storage = 0;
-    aligned_ptr_ = storage_;
+    if constexpr(sizeof(T) + alignof(T) - 1 <= sizeof(storage_)) {
+      // We know for sure that there's space for the object and its alignment
 
-    std::align(alignof(T), sizeof(T), aligned_ptr_, used_storage);
-    new (aligned_ptr_) T(std::move(value));
+      {
+        void* aligned_ptr = storage_;
+        std::size_t used_storage = sizeof(storage_);
+        void* aligned = std::align(alignof(T), sizeof(T), aligned_ptr, used_storage);
+        assert(aligned && "aligned object goes out of bounds");
+        aligned_ptr_ = aligned_ptr;
+      }
 
-    deleter_ = [](void* ptr) {
-      check_alignment<T>(ptr);
-      static_cast<T*>(ptr)->~T();
-    };
+      object_ptr_ = new (aligned_ptr_) T(std::move(value));
 
-    move_construct_ = [](void* target, void* source) {
-      check_alignment<T>(target);
-      check_alignment<T>(source);
-      new (target) T(std::move(*static_cast<T*>(source)));
-    };
+      destruct_ = [](void* ptr) {
+        check_alignment<T>(ptr);
+        static_cast<T*>(ptr)->~T();
+      };
+
+      move_construct_ = [](void* target, void* source) {
+        check_alignment<T>(target); // TODO: can be removed
+        check_alignment<T>(source);
+        return new (target) T(std::move(*static_cast<T*>(source)));
+      };
+    }
+    else {
+      // We might not have enough space for the object, use heap allocation
+      // TODO: check if we really need heap allocation
+      aligned_ptr_ = nullptr;
+      object_ptr_ = new T(std::move(value));
+
+      destruct_ = [](void* ptr) {
+        check_alignment<T>(ptr);
+        delete static_cast<T*>(ptr);
+      };
+
+      move_construct_ = [](void* target, void* source) {
+        (void)target; // Not used -- we don't new in-place
+        check_alignment<T>(source);
+        return new T(std::move(*static_cast<T*>(source)));
+      };
+    }
 
     return *this;
   }
 
   template<typename T>
   const T* get() const {
-    if (!aligned_ptr_)
+    if (!object_ptr_)
       return nullptr;
 
-    check_alignment<T>(aligned_ptr_);
-    return static_cast<T*>(aligned_ptr_);
+    return static_cast<T*>(object_ptr_);
   }
 
-  void* get_aligned_ptr() const {
-    return aligned_ptr_;
+  void* get_object_ptr() const {
+    return object_ptr_;
   }
 
 private:
   void destroy() {
-    if (!aligned_ptr_)
+    if (!object_ptr_)
       return;
 
-    deleter_(aligned_ptr_);
+    destruct_(object_ptr_);
+    object_ptr_ = nullptr;
     aligned_ptr_ = nullptr;
   }
 
   ptrdiff_t aligned_diff() const {
+    // Don't call this function if aligned_ptr_ is null
     return static_cast<const char*>(aligned_ptr_) - storage_;
   }
 
@@ -93,8 +122,10 @@ private:
 
   alignas(alignof(std::max_align_t)) char storage_[Length];
   void* aligned_ptr_ = nullptr;
-  std::function<void(void*)> deleter_;
-  std::function<void(void*, void*)> move_construct_;
+  void* object_ptr_ = nullptr;
+
+  std::function<void(void*)> destruct_;
+  std::function<void*(void*, void*)> move_construct_;
 };
 
 }

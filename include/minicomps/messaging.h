@@ -42,6 +42,7 @@ template<typename R, typename ...Args>
 struct signature_util<R(Args...)> {
   using callback_signature = void(Args..., std::function<void(mc::concrete_result<R>&&)>&&);
   using callback_inner_signature = void(Args..., callback_result<R>&&);
+  using coroutine_type = mc::coroutine<R>;
 
   using return_type = R;
 };

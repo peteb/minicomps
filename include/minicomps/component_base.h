@@ -108,6 +108,18 @@ public:
     }, shared_from_this(), std::move(chosen_executor));
   }
 
+  template<typename Signature, typename... ArgumentTypes>
+  void publish_async_query(if_async_query<Signature>& interface_query, typename signature_util<Signature>::coroutine_type(SubclassType::*memfun)(ArgumentTypes...), executor_ptr executor_override = nullptr) {
+    std::weak_ptr<executor> chosen_executor = executor_override ? executor_override : default_executor;
+    using return_type = typename signature_util<Signature>::return_type;
+
+    interface_query.publish([this, memfun] (ArgumentTypes&&... arguments, mc::callback_result<return_type>&& result_reporter) {
+      (static_cast<SubclassType*>(this)->*memfun)(std::forward<ArgumentTypes>(arguments)...)
+        .chain()
+        .evaluate_into(std::move(result_reporter));
+    }, shared_from_this(), std::move(chosen_executor));
+  }
+
   /// Adds a handler "on top" of an existing handler. Decides whether the next
   /// handler should run or not.
   template<typename MessageType, typename CallbackType>

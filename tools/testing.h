@@ -14,6 +14,12 @@
 
 namespace testing {
 
+template<typename T>
+T* stop_optimizations(T* object) {
+  static T* ptr = object;
+  return ptr;
+}
+
 #define MINICOROS_STR(s) #s
 #define MINICOROS_XSTR(s) MINICOROS_STR(s)
 
