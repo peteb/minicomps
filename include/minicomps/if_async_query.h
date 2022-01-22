@@ -24,7 +24,6 @@ class if_async_query {
 
 public:
   if_async_query(const char* name) : name_(name) {}
-
   if_async_query() = default;
 
   /// Called when the client component has looked up the handler component. Used to create a
@@ -115,10 +114,6 @@ public:
     handling_executor_ = std::move(executor);
   }
 
-  static void set_sending_component(component* sending_component) {
-    current_sending_component = sending_component;
-  }
-
 private:
   /// Called from the client component
   template<typename CallbackType, typename... ArgumentTypes>
@@ -178,8 +173,6 @@ private:
   }
 
 private:
-  static thread_local component* current_sending_component;
-
   // Fields set on the handling side
   const char* name_ = nullptr;
   std::function<callback_inner_type> handler_;

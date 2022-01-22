@@ -1,29 +1,27 @@
-* Interface support for sync queries
-* Align non-interface queries with interface ones
-* Minicoros support for sender
 * Interface support for events
-* Mutable responses (responses containing ptrs/refs)
+* Filters for interface functions
+* Align non-interface queries with interface ones
 * Fix coroutines hardcoded to return int
+* Minicoros support for sender
+* Mutable responses (responses containing ptrs/refs)
 * Copy interfaces with lifetime
-* Support for communication policies
 * Measure compilation performance
-* Should Interfaces be renamed to Components?
-
-* Macros for query declarations using "gmock" style: DECLARE_QUERY(void, MyQuery, (int param1, int param2))
-* Try out using the executor lock instead of the component lock, then add "try_execute"
 * Build with more errors activated
+
+* Async queries and events need to copy their arguments/decay
+* Macros for query declarations using "gmock" style: DECLARE_QUERY(void, MyQuery, (int param1, int param2))
 * Flag for forcing async even if sender and receiver are on the same executor
 * Well-defined behavior when components are removed in the middle of a call
-* Async queries and events need to copy their arguments/decay
 * Protection against weird edge cases; query getting published twice, etc
 * Register sync-looking code as async
 * Filter handlers for sync queries
 * Const parameters, references, etc
 * Investigate propagation of cancellations
-* Caching
 * Go through examples and fix them up after latest changes
 * Easy way to lock the component due to outside callbacks
+* Add "try_execute"
 
+* Support for communication policies
 * Load balancing?
 * Refactor get_message_id and get_message_info
 * TODOs in code
@@ -33,6 +31,7 @@
 * Flag to toggle behavior for async queries when receiver has unloaded (cancel request/"black hole", raise error, resend (next frame), DLQ)
 * lookup(query1, query2, query3) that works for both sync and async?
 * Defer publishing to onLink (automatically)
+* Built-in caching?
 * Built-in retries?
 * Built-in throttling?
 * Budgeting for executors

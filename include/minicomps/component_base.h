@@ -16,6 +16,7 @@
 #include <minicomps/interface_ref.h>
 #include <minicomps/interface.h>
 #include <minicomps/if_async_query.h>
+#include <minicomps/if_sync_query.h>
 
 #include <cstdint>
 #include <iostream>
@@ -99,6 +100,7 @@ public:
     interfaces_[msg_id] = &impl;
   }
 
+  /// Publish a callback_result member function as an interface async query
   template<typename Signature, typename... ArgumentTypes>
   void publish_async_query(if_async_query<Signature>& interface_query, void(SubclassType::*memfun)(ArgumentTypes...), executor_ptr executor_override = nullptr) {
     std::weak_ptr<executor> chosen_executor = executor_override ? executor_override : default_executor;
@@ -108,6 +110,7 @@ public:
     }, shared_from_this(), std::move(chosen_executor));
   }
 
+  /// Publish a minicoros member function as an interface async query
   template<typename Signature, typename... ArgumentTypes>
   void publish_async_query(if_async_query<Signature>& interface_query, typename signature_util<Signature>::coroutine_type(SubclassType::*memfun)(ArgumentTypes...), executor_ptr executor_override = nullptr) {
     std::weak_ptr<executor> chosen_executor = executor_override ? executor_override : default_executor;
@@ -118,6 +121,14 @@ public:
         .chain()
         .evaluate_into(std::move(result_reporter));
     }, shared_from_this(), std::move(chosen_executor));
+  }
+
+  /// Publish a member function as an interface sync query
+  template<typename Signature, typename... ArgumentTypes>
+  void publish_sync_query(if_sync_query<Signature>& interface_query, typename signature_util<Signature>::return_type(SubclassType::*memfun)(ArgumentTypes...)) {
+    interface_query.publish([this, memfun] (ArgumentTypes&&... arguments) {
+      return (static_cast<SubclassType*>(this)->*memfun)(std::forward<ArgumentTypes>(arguments)...);
+    }, shared_from_this(), default_executor);
   }
 
   /// Adds a handler "on top" of an existing handler. Decides whether the next

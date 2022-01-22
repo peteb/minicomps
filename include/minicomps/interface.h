@@ -16,6 +16,7 @@ public:
 
   InterfaceType* operator-> () {
     // TODO: support for fallback?
+    // TODO: lookup can return null, handle that
     return ref_->lookup();
   }
 

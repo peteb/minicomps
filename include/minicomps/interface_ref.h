@@ -46,7 +46,7 @@ public:
 
     InterfaceType* handler_interface = static_cast<InterfaceType*>(receiver_->lookup_interface(msg_id));
     if (!handler_interface)
-      std::abort();
+      return nullptr;
 
     // Create a proxy by calling the copy constructor. Yes, this is a bit magical/hacky, but it makes for some nice usage syntax.
     set_current_component(&owning_component_);
