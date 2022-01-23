@@ -62,7 +62,7 @@ public:
     {}
 
   void send() {
-    sum_(4, 5).with_callback([&](mc::concrete_result<int> result) {});
+    sum_.call(4, 5).with_callback([&](mc::concrete_result<int> result) {});
   }
 
   void send_update(int value) {
@@ -71,7 +71,7 @@ public:
 
     send_count_++;
 
-    update_values_(value).with_callback([this](mc::concrete_result<int> cr) {
+    update_values_.call(value).with_callback([this](mc::concrete_result<int> cr) {
       int result = *cr.get_value();
       if (receive_count_++ >= 2000000)
         done_ = true;

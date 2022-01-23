@@ -8,6 +8,7 @@
 #include <minicomps/messaging.h>
 #include <minicomps/callback.h>
 #include <minicomps/component.h>
+#include <minicoros/coroutine.h>
 
 #include <tuple>
 #include <memory>
@@ -22,6 +23,9 @@ namespace mc {
 ///     executor and the promise resolving is enqueued on the sending component's executor
 template<typename MessageType>
 class async_query {
+  using signature = typename query_info<MessageType>::signature;
+  using return_type = typename signature_util<signature>::return_type;
+
 public:
   async_query(async_mono_ref<MessageType>* handler, component* owning_component)
     : handler_(handler)
@@ -43,8 +47,6 @@ public:
     , lifetime_(life)
     {}
 
-  using result_type = typename signature_util<typename query_info<MessageType>::signature>::return_type;
-
   template<typename... ArgumentTypes>
   class query_invoker {
   public:
@@ -54,8 +56,14 @@ public:
       , arguments_(std::forward<ArgumentTypes>(arguments)...)
       {}
 
+    query_invoker(async_query& async_query, lifetime_weak_ptr&& lifetime, std::tuple<ArgumentTypes...>&& arguments)
+      : async_query_(async_query)
+      , lifetime_(std::move(lifetime))
+      , arguments_(std::move(arguments))
+      {}
+
     ~query_invoker() {
-      async_query_.execute_with_callback(std::move(callback_), std::move(lifetime_), std::move(arguments_));
+      async_query_.execute(std::move(callback_), std::move(lifetime_), std::move(arguments_));
     }
 
     query_invoker&& with_lifetime(const lifetime& life) && {
@@ -63,14 +71,14 @@ public:
       return std::move(*this);
     }
 
-    query_invoker&& with_callback(std::function<void(mc::concrete_result<result_type>&&)>&& callback) && {
+    query_invoker&& with_callback(std::function<void(mc::concrete_result<return_type>&&)>&& callback) && {
       callback_ = std::move(callback);
       return std::move(*this);
     }
 
     template<typename OuterResultType, typename CallbackType>
     query_invoker&& with_successful_callback(OuterResultType&& outer_result, CallbackType&& callback) && {
-      std::move(*this).with_callback([outer_result = std::move(outer_result), callback = std::move(callback)](mc::concrete_result<result_type>&& inner_result) mutable {
+      std::move(*this).with_callback([outer_result = std::move(outer_result), callback = std::move(callback)](mc::concrete_result<return_type>&& inner_result) mutable {
         if (!inner_result.success()) {
           outer_result(std::move(*inner_result.get_failure()));
           return;
@@ -85,7 +93,7 @@ public:
   private:
     async_query& async_query_;
     lifetime_weak_ptr lifetime_;
-    std::function<void(mc::concrete_result<result_type>&&)> callback_;
+    std::function<void(mc::concrete_result<return_type>&&)> callback_;
     std::tuple<ArgumentTypes...> arguments_;
     component* sender_;
   };
@@ -93,13 +101,30 @@ public:
   /// Creates an invocation object that will call this function. The object is needed because C++ doesn't allow
   /// non-pack parameters (the callback) after a parameter pack.
   template<typename... Args>
-  query_invoker<Args...> operator() (Args&&... arguments) {
+  query_invoker<Args...> call(Args&&... arguments) {
     return query_invoker<Args...>(*this, lifetime_.create_weak_ptr(), std::forward<Args>(arguments)...);
+  }
+
+  template<typename... Args>
+  query_invoker<Args...> call(std::tuple<Args...>&& arguments) {
+    return query_invoker<Args...>(*this, lifetime_.create_weak_ptr(), std::move(arguments));
+  }
+
+  template<typename... Args>
+  mc::coroutine<return_type> operator() (Args&&... arguments) {
+    std::tuple<Args...> copied_arguments = std::make_tuple(std::forward<Args>(arguments)...);
+
+    return mc::coroutine<return_type>([this, copied_arguments = std::move(copied_arguments)](mc::promise<return_type>&& promise) mutable {
+      call(std::move(copied_arguments))
+        .with_callback([promise = std::move(promise)] (mc::concrete_result<return_type>&& result) {
+          promise(std::move(result));
+        });
+    });
   }
 
 private:
   template<typename CallbackType, typename... ArgumentTypes>
-  void execute_with_callback(CallbackType&& callback, lifetime_weak_ptr&& lifetime, std::tuple<ArgumentTypes...>&& arguments) {
+  void execute(CallbackType&& callback, lifetime_weak_ptr&& lifetime, std::tuple<ArgumentTypes...>&& arguments) {
     auto handler = handler_->lookup();
     auto& receiving_component = handler_->receiver();
 
@@ -118,7 +143,7 @@ private:
     else {
       struct request_data {
         std::tuple<ArgumentTypes...> arguments;
-        std::function<void(mc::concrete_result<result_type>&&)> callback;
+        std::function<void(mc::concrete_result<return_type>&&)> callback;
         executor_ptr receiver_executor; // We have to capture executor as a shared_ptr to protect against lifetime issues
         lifetime_weak_ptr lifetime;
 

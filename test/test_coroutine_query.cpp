@@ -9,7 +9,6 @@
 #include <minicomps/messaging.h>
 #include <minicomps/executor.h>
 #include <minicomps/testing.h>
-#include <minicomps/coroutine_query.h>
 
 #include <memory>
 #include <optional>
@@ -63,7 +62,7 @@ public:
     , save_callback_result(lookup_async_query<SaveCallbackResult>())
     {}
 
-  coroutine_query<Sum> sum;
+  async_query<Sum> sum;
   async_query<Print> print;
   async_query<SaveCallbackResult> save_callback_result;
 };

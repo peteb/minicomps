@@ -27,8 +27,8 @@ public:
 
   virtual void publish() override {
     publish_async_query<Sum>([this](int t1, int t2, callback_result<int>&& sum_result) {
-      get_value_mapping_(t1).with_successful_callback(std::move(sum_result), [this, t2](int t1_mapped, auto&& sum_result) {
-        get_value_mapping_(t2).with_successful_callback(std::move(sum_result), [this, t1_mapped](int t2_mapped, auto&& sum_result) mutable {
+      get_value_mapping_.call(t1).with_successful_callback(std::move(sum_result), [this, t2](int t1_mapped, auto&& sum_result) {
+        get_value_mapping_.call(t2).with_successful_callback(std::move(sum_result), [this, t1_mapped](int t2_mapped, auto&& sum_result) mutable {
           sum_result(t1_mapped + t2_mapped);
         });
       });
@@ -84,7 +84,7 @@ TEST(test_async_query_filter, prepended_query_is_invoked_and_proceeds) {
   });
 
   // When
-  tester->sum(444, 555)
+  tester->sum.call(444, 555)
     .with_callback([&] (mc::concrete_result<int> result) {response = *result.get_value(); });
 
   // Then
@@ -109,7 +109,7 @@ TEST(test_async_query_filter, prepended_query_can_stop_execution_and_return_valu
   });
 
   // When
-  tester->sum(444, 555)
+  tester->sum.call(444, 555)
     .with_callback([&] (mc::concrete_result<int> result) {response = *result.get_value(); });
 
   // Then

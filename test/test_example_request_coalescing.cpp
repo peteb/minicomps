@@ -105,9 +105,9 @@ TEST(test_example_request_coalescing, multiple_concurrent_requests_are_coalesced
   int response2 = 0;
 
   // When
-  sender->long_operation(123)
+  sender->long_operation.call(123)
     .with_callback([&] (mc::concrete_result<int> result) {response1 = *result.get_value(); });
-  sender->long_operation(123)
+  sender->long_operation.call(123)
     .with_callback([&] (mc::concrete_result<int> result) {response2 = *result.get_value(); });
 
   // Then

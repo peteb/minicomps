@@ -9,7 +9,6 @@
 #include <minicomps/messaging.h>
 #include <minicomps/executor.h>
 #include <minicomps/testing.h>
-#include <minicomps/coroutine_query.h>
 #include <minicomps/interface.h>
 #include <minicomps/if_async_query.h>
 

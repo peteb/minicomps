@@ -1,5 +1,5 @@
-* Align non-interface queries with interface ones
-* Fix coroutines hardcoded to return int
+* Tests for custom executor on interface queries
+* Write a sample application
 * Copy interfaces with lifetime
 * Minicoros support for sender
 * Mutable responses (responses containing ptrs/refs)

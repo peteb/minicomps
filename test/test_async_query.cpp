@@ -118,7 +118,7 @@ TEST(async_query, same_executor_executes_query_synchronously) {
   int response = 0;
 
   // When
-  sender->sum(444, 555)
+  sender->sum.call(444, 555)
     .with_callback([&] (mc::concrete_result<int> result) {response = *result.get_value(); });
 
   // Then
@@ -136,7 +136,7 @@ TEST(async_query, different_executor_enqueues_on_executors) {
   auto receiver = registry.create<recv_component>(broker, receiver_executor);
   int response = 0;
 
-  sender->sum(444, 555)
+  sender->sum.call(444, 555)
     .with_callback([&] (mc::concrete_result<int> result) {response = *result.get_value(); });
 
   // When/Then
@@ -163,7 +163,7 @@ TEST(async_query, can_call_query_returning_void) {
   bool returned = false;
 
   // When
-  sender->print(432).with_callback([&](mc::concrete_result<void>) {returned = true; });
+  sender->print.call(432).with_callback([&](mc::concrete_result<void>) {returned = true; });
 
   // Then
   ASSERT_TRUE(returned);
@@ -184,7 +184,7 @@ TEST(async_query, invocation_across_different_executors_triggers_enqueue_listene
   sender->listener = &sender_listener;
 
   // When
-  sender->print(432).with_callback([&](mc::concrete_result<void>) {});
+  sender->print.call(432).with_callback([&](mc::concrete_result<void>) {});
 
   exec->execute();
   exec2->execute();
@@ -206,7 +206,7 @@ TEST(async_query, lifetime_expiration_stops_callback) {
   lifetime lifetime;
 
   // When
-  sender->print(432)
+  sender->print.call(432)
     .with_lifetime(lifetime)
     .with_callback([&](mc::concrete_result<void>) {returned = true; });
 
@@ -230,7 +230,7 @@ TEST(async_query, cancellation_status_is_propagated_to_callback_result_and_works
   lifetime lifetime;
 
   // When
-  sender->save_callback_result()
+  sender->save_callback_result.call()
     .with_lifetime(lifetime)
     .with_callback([&](mc::concrete_result<void>) {returned = true; });
 
@@ -256,7 +256,7 @@ TEST(async_query, with_custom_executor_triggers_function_later) {
   auto receiver = registry.create<recv_component>(broker, exec);
 
   // When/Then
-  sender->flow_controlled_function().with_callback([] (mc::concrete_result<void>&&) {}); // Components are on same executor, so request would be sync
+  sender->flow_controlled_function.call().with_callback([] (mc::concrete_result<void>&&) {}); // Components are on same executor, so request would be sync
   ASSERT_FALSE(receiver->flow_function_called);
 
   receiver->flow_executor->execute();

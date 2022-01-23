@@ -9,7 +9,6 @@
 #include <minicomps/messaging.h>
 #include <minicomps/executor.h>
 #include <minicomps/testing.h>
-#include <minicomps/coroutine_query.h>
 
 #include <unordered_map>
 #include <memory>
@@ -61,7 +60,7 @@ public:
     }
 
     lifetime lifetime_;
-    coroutine_query<LongOperation> long_operation;
+    async_query<LongOperation> long_operation;
     bool received_value = false;
   };
 
