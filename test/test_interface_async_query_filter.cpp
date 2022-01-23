@@ -9,34 +9,50 @@
 #include <minicomps/messaging.h>
 #include <minicomps/executor.h>
 #include <minicomps/testing.h>
+#include <minicomps/interface.h>
 
 using namespace testing;
 using namespace mc;
 
 namespace {
 
-DECLARE_QUERY(Sum, int(int, int)); DEFINE_QUERY(Sum);
-DECLARE_QUERY(GetValueMapping, int(int)); DEFINE_QUERY(GetValueMapping);
+DECLARE_INTERFACE(calculator_if); DEFINE_INTERFACE(calculator_if);
+
+struct calculator_if {
+  ASYNC_QUERY(sum, int(int, int));
+};
+
+DECLARE_INTERFACE(mapper_if); DEFINE_INTERFACE(mapper_if);
+
+struct mapper_if {
+  ASYNC_QUERY(getValueMapping, int(int));
+};
 
 class calculator_component : public component_base<calculator_component> {
 public:
   calculator_component(broker& broker, executor_ptr executor)
     : component_base("calculator", broker, executor)
-    , get_value_mapping_(lookup_async_query<GetValueMapping>())
+    , mapper_(lookup_interface<mapper_if>())
     {}
 
   virtual void publish() override {
-    publish_async_query<Sum>([this](int t1, int t2, callback_result<int>&& sum_result) {
-      get_value_mapping_(t1).with_successful_callback(std::move(sum_result), [this, t2](int t1_mapped, auto&& sum_result) {
-        get_value_mapping_(t2).with_successful_callback(std::move(sum_result), [this, t1_mapped](int t2_mapped, auto&& sum_result) mutable {
-          sum_result(t1_mapped + t2_mapped);
-        });
-      });
-    });
+    publish_interface(calc_if);
+    publish_async_query(calc_if.sum, &calculator_component::sum);
   }
 
 private:
-  async_query<GetValueMapping> get_value_mapping_;
+  void sum(int t1, int t2, callback_result<int>&& sum_result) {
+    mapper_->getValueMapping.call(t1).with_successful_callback(std::move(sum_result), [this, t2](int t1_mapped, auto&& sum_result) {
+      mapper_->getValueMapping.call(t2).with_successful_callback(std::move(sum_result), [this, t1_mapped](int t2_mapped, auto&& sum_result) mutable {
+        sum_result(t1_mapped + t2_mapped);
+      });
+    });
+  }
+  // Exposed interfaces
+  calculator_if calc_if;
+
+  // Dependencies
+  interface<mapper_if> mapper_;
 };
 
 class mapping_component : public component_base<mapping_component> {
@@ -48,26 +64,30 @@ public:
   using component_base::prepend_async_query_filter;
 
   virtual void publish() override {
-    publish_async_query<GetValueMapping>([this](int value, callback_result<int>&& result) {
-      was_called = true;
-      result(value * 2);
-    });
+    publish_interface(map_if);
+    publish_async_query(map_if.getValueMapping, &mapping_component::getValueMapping);
+  }
+
+  void getValueMapping(int value, callback_result<int>&& result) {
+    was_called = true;
+    result(value * 2);
   }
 
   bool was_called = false;
+  mapper_if map_if;
 };
 
 class test_component : public component_base<test_component> {
 public:
   test_component(broker& broker, executor_ptr executor)
     : component_base("sender", broker, executor)
-    , sum(lookup_async_query<Sum>())
+    , calculator(lookup_interface<calculator_if>())
     {}
 
-  async_query<Sum> sum;
+  interface<calculator_if> calculator;
 };
 
-TEST(test_async_query_filter, prepended_query_is_invoked_and_proceeds) {
+TEST(test_interface_async_query_filter, prepended_query_is_invoked_and_proceeds) {
   // Given
   broker broker;
   executor_ptr exec = std::make_shared<executor>();
@@ -78,13 +98,13 @@ TEST(test_async_query_filter, prepended_query_is_invoked_and_proceeds) {
   int response = 0;
   int filter_was_called_with = 0;
 
-  mapper->prepend_async_query_filter<GetValueMapping>([&] (bool& proceed, int value, callback_result<int>&& result) {
+  mapper->prepend_async_query_filter(mapper->map_if.getValueMapping, [&] (bool& proceed, int value, callback_result<int>&& result) {
     filter_was_called_with = value;
     proceed = true;
   });
 
   // When
-  tester->sum(444, 555)
+  tester->calculator->sum.call(444, 555)
     .with_callback([&] (mc::concrete_result<int> result) {response = *result.get_value(); });
 
   // Then
@@ -93,7 +113,7 @@ TEST(test_async_query_filter, prepended_query_is_invoked_and_proceeds) {
   ASSERT_TRUE(mapper->was_called);
 }
 
-TEST(test_async_query_filter, prepended_query_can_stop_execution_and_return_value) {
+TEST(test_interface_async_query_filter, prepended_query_can_stop_execution_and_return_value) {
   // Given
   broker broker;
   executor_ptr exec = std::make_shared<executor>();
@@ -103,14 +123,14 @@ TEST(test_async_query_filter, prepended_query_can_stop_execution_and_return_valu
   auto mapper = registry.create<mapping_component>(broker, exec);
   int response = 0;
 
-  mapper->prepend_async_query_filter<GetValueMapping>([&] (bool& proceed, int value, callback_result<int>&& result) {
+  mapper->prepend_async_query_filter(mapper->map_if.getValueMapping, [&] (bool& proceed, int value, callback_result<int>&& result) {
     proceed = false;
     result(123);
   });
 
   // When
-  tester->sum(444, 555)
-    .with_callback([&] (mc::concrete_result<int> result) {response = *result.get_value(); });
+  tester->calculator->sum(444, 555)
+    .then([&](int result) {response = result; });
 
   // Then
   ASSERT_EQ(response, 246);

@@ -114,6 +114,18 @@ public:
     handling_executor_ = std::move(executor);
   }
 
+  template<typename CallbackType>
+  void prepend_filter(CallbackType&& handler) {
+    auto previous_handler = std::move(handler_);
+
+    handler_ = [handler = std::move(handler), previous_handler = std::move(previous_handler)] (auto&&... args) mutable {
+      bool proceed = true;
+      handler(proceed, std::move(args)...);
+      if (proceed)
+        previous_handler(std::move(args)...);
+    };
+  }
+
 private:
   /// Called from the client component
   template<typename CallbackType, typename... ArgumentTypes>

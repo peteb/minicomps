@@ -1,10 +1,8 @@
-* Interface support for events
-* Filters for interface functions
 * Align non-interface queries with interface ones
 * Fix coroutines hardcoded to return int
+* Copy interfaces with lifetime
 * Minicoros support for sender
 * Mutable responses (responses containing ptrs/refs)
-* Copy interfaces with lifetime
 * Measure compilation performance
 * Build with more errors activated
 
@@ -21,6 +19,7 @@
 * Easy way to lock the component due to outside callbacks
 * Add "try_execute"
 
+* Interface support for events (not sure if needed)
 * Support for communication policies
 * Load balancing?
 * Refactor get_message_id and get_message_info

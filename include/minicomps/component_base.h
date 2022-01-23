@@ -31,7 +31,7 @@ template<typename SubclassType>
 class component_base : public component, public std::enable_shared_from_this<SubclassType> {
   using std::enable_shared_from_this<SubclassType>::shared_from_this;
 
-public:
+protected:
   component_base(const char* name, broker& broker, executor_ptr executor) : component(name, executor), broker_(broker) {}
 
   ~component_base() {
@@ -40,6 +40,7 @@ public:
     }
   }
 
+public:
   virtual void publish() override {
     published_ = true;
   }
@@ -52,6 +53,27 @@ public:
     published_ = false;
   }
 
+  virtual std::vector<dependency_info> describe_dependencies() override {
+    std::vector<dependency_info> infos;
+
+    for (auto& mono : mono_refs_) {
+      mono->force_resolve();
+      infos.push_back(mono->create_dependency_info());
+    }
+
+    for (auto& poly : poly_refs_) {
+      poly->force_resolve();
+      infos.push_back(poly->create_dependency_info());
+    }
+
+    for (const dependency_info& info : published_dependencies_) {
+      infos.push_back(info);
+    }
+
+    return infos;
+  }
+
+protected:
   /// Publishes a callable as a synchronous query
   template<typename MessageType, typename CallbackType>
   void publish_sync_query(CallbackType&& handler) {
@@ -157,6 +179,20 @@ public:
     // TODO: remove from queryHandlers
   }
 
+  /// Adds a handler "on top" of an existing handler. Decides whether the next
+  /// handler should run or not.
+  template<typename Signature, typename CallbackType>
+  void prepend_async_query_filter(if_async_query<Signature>& interface_query, CallbackType&& handler) {
+    interface_query.prepend_filter(std::forward<CallbackType>(handler));
+
+    // Existing references will have to be updated since we've updated the handler pointer. We need to invalidate
+    // the interface that this function belongs to, but since we don't have any way to map function -> interface, we
+    // just invalidate all of them.
+    for (const auto& [interface_msg_id, _] : interfaces_) {
+      broker_.invalidate(interface_msg_id);
+    }
+  }
+
   /// Publishes a callable as an event listener for asynchronous events.
   template<typename MessageType, typename CallbackType>
   void subscribe_event(CallbackType&& handler) {
@@ -243,26 +279,6 @@ public:
       return nullptr;
 
     return iter->second;
-  }
-
-  virtual std::vector<dependency_info> describe_dependencies() override {
-    std::vector<dependency_info> infos;
-
-    for (auto& mono : mono_refs_) {
-      mono->force_resolve();
-      infos.push_back(mono->create_dependency_info());
-    }
-
-    for (auto& poly : poly_refs_) {
-      poly->force_resolve();
-      infos.push_back(poly->create_dependency_info());
-    }
-
-    for (const dependency_info& info : published_dependencies_) {
-      infos.push_back(info);
-    }
-
-    return infos;
   }
 
 private:
