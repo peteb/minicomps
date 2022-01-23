@@ -1,4 +1,3 @@
-* Tests for custom executor on interface queries
 * Write a sample application
 * Copy interfaces with lifetime
 * Minicoros support for sender

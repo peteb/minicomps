@@ -27,6 +27,7 @@ class receiver_if {
 public:
   ASYNC_QUERY(frobnicate, int(int));
   ASYNC_QUERY(frobnicate2, int(int));
+  ASYNC_QUERY(flow_controlled_function, void(void));
 };
 
 // receiver.cpp
@@ -46,6 +47,7 @@ public:
     publish_interface(receiver_);
     publish_async_query(receiver_.frobnicate, &receiver_component_impl::frobnicate_impl);
     publish_async_query(receiver_.frobnicate2, &receiver_component_impl::frobnicate2_impl);
+    publish_async_query(receiver_.flow_controlled_function, &receiver_component_impl::flow_controlled_function, flow_executor);
   }
 
   void frobnicate_impl(int value, callback_result<int>&& result) {
@@ -61,9 +63,16 @@ public:
     });
   }
 
+  void flow_controlled_function(mc::callback_result<void>&& result) {
+    flow_function_called = true;
+    result({});
+  }
+
   int received_value = 0;
   std::shared_ptr<callback_result<int>> result_ptr;
   mc::promise<int> frob2_promise;
+  bool flow_function_called = false;
+  executor_ptr flow_executor = std::make_shared<executor>();
 
 private:
   receiver_if receiver_;
@@ -200,6 +209,23 @@ TEST(test_interface_async, same_executor_coroutine_receiver_and_coroutine_sender
   recv_comp_impl->frob2_promise(444);
 
   ASSERT_EQ(received_result, 444);
+}
+
+TEST(test_interface_async, with_custom_executor_triggers_function_later) {
+  // Given
+  broker broker;
+  executor_ptr exec = std::make_shared<executor>();
+  component_registry registry;
+
+  std::shared_ptr<receiver_component_impl> recv_comp_impl = registry.create<receiver_component_impl>(broker, exec);
+  std::shared_ptr<sender_component_impl> sender = registry.create<sender_component_impl>(broker, exec);
+
+  // When/Then
+  sender->receiver->flow_controlled_function.call().with_callback([] (mc::concrete_result<void>&&) {}); // Components are on same executor, so request would be sync
+  ASSERT_FALSE(recv_comp_impl->flow_function_called);
+
+  recv_comp_impl->flow_executor->execute();
+  ASSERT_TRUE(recv_comp_impl->flow_function_called);
 }
 
 // TODO: listeners
