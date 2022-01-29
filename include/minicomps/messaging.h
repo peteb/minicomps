@@ -6,6 +6,7 @@
 #include <minicomps/executor.h>
 #include <minicoros/continuation_chain.h>
 #include <minicoros/types.h>
+#include <minicoros/coroutine.h> // TODO: make it so we don't need this dependency
 
 #include <cstdint>
 #include <functional>
@@ -38,7 +39,7 @@ template<typename R>
 class callback_result;
 
 /// Converts a query signature of R(Args...) to various representations.
-template<typename R, typename ...Args>
+template<typename R, typename... Args>
 struct signature_util<R(Args...)> {
   using callback_signature = void(Args..., std::function<void(mc::concrete_result<R>&&)>&&);
   using callback_inner_signature = void(Args..., callback_result<R>&&);
@@ -108,22 +109,22 @@ const message_info& get_message_info() {
 
 }
 
-#define xstr(s) str(s)
-#define str(s) #s
+#define MINICOMPS_XSTR(s) MINICOMPS_STR(s)
+#define MINICOMPS_STR(s) #s
 
 #define MESSAGE_API  // dllexport/dllimport
 
 #define MESSAGE_DECLARATION(name)                                                           \
-  MESSAGE_API message_id get_message_id(name*);                                             \
-  MESSAGE_API const message_info& get_message_info(name*);
+  MESSAGE_API mc::message_id get_message_id(name*);                                         \
+  MESSAGE_API const mc::message_info& get_message_info(name*);
 
 #define MESSAGE_DEFINITION(name)                                                            \
-  message_id get_message_id(name*) {                                                        \
+  mc::message_id get_message_id(name*) {                                                    \
     static int uniq;                                                                        \
-    return message_id{reinterpret_cast<uintptr_t>(&uniq)};                                  \
+    return mc::message_id{reinterpret_cast<uintptr_t>(&uniq)};                              \
   }                                                                                         \
-  const message_info& get_message_info(name* ptr) {                                         \
-    static message_info msg{str(name), get_message_id(ptr)};                                \
+  const mc::message_info& get_message_info(name* ptr) {                                     \
+    static mc::message_info msg{MINICOMPS_STR(name), get_message_id(ptr)};                            \
     return msg;                                                                             \
   }                                                                                         \
 
@@ -149,6 +150,8 @@ const message_info& get_message_info() {
 #define DEFINE_EVENT(name) MESSAGE_DEFINITION(name)
 
 #define DECLARE_INTERFACE(name) class name; MESSAGE_DECLARATION(name)
+#define DECLARE_INTERFACE2(name, contents) struct name contents; MESSAGE_DECLARATION(name)  // Use overloading instead
+
 #define DEFINE_INTERFACE(name) MESSAGE_DEFINITION(name)
 
 #endif // MINICOMPS_MESSAGING_H_

@@ -26,6 +26,13 @@ public:
     , callback_(std::move(callback))
     {}
 
+  // TODO: operator = etc
+  callback_result(const callback_result&) = default;
+  callback_result(callback_result&&) = default;
+
+  callback_result& operator =(const callback_result&) = default;
+  callback_result& operator =(callback_result&&) = default;
+
   void operator()(mc::concrete_result<T>&& result) {
     if (receiving_executor_) {
       struct response_data {

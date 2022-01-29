@@ -9,7 +9,7 @@
 
 #include <functional>
 
-#define SYNC_QUERY(name, signature) mc::if_sync_query<signature> name{str(name)}
+#define SYNC_QUERY(name, signature) mc::if_sync_query<signature> name{MINICOMPS_STR(name)}
 
 namespace mc {
 

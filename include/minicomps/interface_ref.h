@@ -21,7 +21,11 @@ public:
 template<typename InterfaceType>
 class interface_ref_base : public interface_ref {
 public:
-  interface_ref_base(broker& broker, component& owning_component) : broker_(broker), owning_component_(owning_component) {}
+  interface_ref_base(broker& broker, component& owning_component, lifetime_weak_ptr lifetime)
+    : broker_(broker)
+    , owning_component_(owning_component)
+    , lifetime_(lifetime)
+    {}
 
   InterfaceType* lookup() {
     // None of the resolved receivers have changed, so the cached interface pointer should still be good
@@ -50,7 +54,9 @@ public:
 
     // Create a proxy by calling the copy constructor. Yes, this is a bit magical/hacky, but it makes for some nice usage syntax.
     set_current_component(&owning_component_);
+    set_current_lifetime(lifetime_);
     local_interface_proxy_ = std::make_unique<InterfaceType>(*handler_interface);
+    set_current_lifetime({});
     set_current_component(nullptr);
 
     return local_interface_proxy_.get();
@@ -70,12 +76,19 @@ public:
     return {dependency_info::IMPORT, dependency_info::INTERFACE, get_message_info<InterfaceType>(), {receiver_.get()}};
   }
 
+  component& owning_component() const {
+    return owning_component_;
+  }
+
+  std::function<interface_ref_base*(lifetime)> clone;
+
 private:
   broker& broker_;
   component& owning_component_;
   std::weak_ptr<message_receivers> resolved_receivers_;
   std::unique_ptr<InterfaceType> local_interface_proxy_;
   std::shared_ptr<component> receiver_; // shared_ptr as a performance improvement I believe. TODO: measure
+  lifetime_weak_ptr lifetime_;
 };
 
 }

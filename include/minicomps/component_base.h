@@ -168,7 +168,7 @@ protected:
 
     async_handlers_[msg_id] = std::make_shared<async_wrapper_type>([handler = std::move(handler), previous_handler = std::move(previous_handler)] (auto&&... args) mutable {
       bool proceed = true;
-      handler(proceed, std::move(args)...);
+      handler(proceed, std::move(args)...); // TODO: we can't move both here and in the proceed phase
       if (proceed)
         (*static_cast<async_handler_type*>(previous_handler->get_handler_ptr()))(std::move(args)...);
     });
@@ -236,7 +236,16 @@ protected:
 
   template<typename InterfaceType>
   interface<InterfaceType> lookup_interface() {
-    auto interface_ref = std::make_shared<interface_ref_base<InterfaceType>>(broker_, *this);
+    auto interface_ref = std::make_shared<interface_ref_base<InterfaceType>>(broker_, *this, default_lifetime.create_weak_ptr());
+
+    // TODO: clean this up
+    interface_ref->clone = [this] (lifetime life) {
+      // TODO: we need to clean up interface_refs_ at some point
+      auto interface_ref = std::make_shared<interface_ref_base<InterfaceType>>(broker_, *this, life.create_weak_ptr());
+      interface_refs_.push_back(interface_ref);
+      return interface_ref.get();
+    };
+
     interface_refs_.push_back(interface_ref);
     return interface<InterfaceType>(interface_ref.get());
   }

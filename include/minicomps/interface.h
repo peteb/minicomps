@@ -14,6 +14,11 @@ public:
     : ref_(ref)
     {}
 
+  interface(const interface& other, lifetime life)
+    : ref_(other.ref_->clone(life))
+  {
+  }
+
   InterfaceType* operator-> () {
     // TODO: support for fallback?
     // TODO: lookup can return null, handle that

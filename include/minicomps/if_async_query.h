@@ -13,14 +13,17 @@
 #include <tuple>
 #include <iostream>
 
-#define ASYNC_QUERY(name, signature) mc::if_async_query<signature> name{str(name)}
+#define ASYNC_QUERY(name, signature) mc::if_async_query<signature> name{MINICOMPS_STR(name)}
 
 namespace mc {
 
 template<typename Signature>
-class if_async_query {
-  using callback_inner_type = typename signature_util<Signature>::callback_inner_signature;
-  using return_type = typename signature_util<Signature>::return_type;
+class if_async_query;
+
+template<typename R, typename... Args>
+class if_async_query<R(Args...)> {
+  using callback_inner_type = typename signature_util<R(Args...)>::callback_inner_signature;
+  using return_type = R;
 
 public:
   if_async_query(const char* name) : name_(name) {}
@@ -28,9 +31,10 @@ public:
 
   /// Called when the client component has looked up the handler component. Used to create a
   /// local view of the handling interface.
-  if_async_query(const if_async_query& other) {
+  if_async_query(if_async_query& other) {
     linked_query_ = &other;
     sending_component_ = get_current_component();
+    sending_lifetime_ = get_current_lifetime();
 
     if (!sending_component_)
       std::abort();
@@ -89,19 +93,17 @@ public:
 
   /// Creates an invocation object that will call this function. The object is needed because C++ doesn't allow
   /// non-pack parameters (the callback) after a parameter pack.
-  template<typename... Args>
   query_invoker<Args...> call(Args&&... arguments) {
-    return query_invoker<Args...>(*this, sending_component_->default_lifetime.create_weak_ptr(), std::forward<Args>(arguments)...);
+    return query_invoker<Args...>(*this, sending_lifetime_, std::forward<Args>(arguments)...);
   }
 
-  template<typename... Args>
-  mc::coroutine<return_type> operator() (Args&&... arguments) {
-    std::tuple<Args...> copied_arguments = std::make_tuple(std::forward<Args>(arguments)...);
+  mc::coroutine<return_type> operator() (Args... arguments) {
+    std::tuple<Args...> copied_arguments = std::make_tuple(arguments...);
 
     return mc::coroutine<return_type>([this, copied_arguments = std::move(copied_arguments)](mc::promise<return_type>&& promise) mutable {
-      execute([promise = std::move(promise), copied_arguments = std::move(copied_arguments)](mc::concrete_result<return_type>&& result) {
+      execute([promise = std::move(promise)](mc::concrete_result<return_type>&& result) {
         promise(std::move(result));
-      }, sending_component_->default_lifetime.create_weak_ptr(), std::move(copied_arguments));
+      }, sending_lifetime_, std::move(copied_arguments));
     });
   }
 
@@ -116,11 +118,19 @@ public:
 
   template<typename CallbackType>
   void prepend_filter(CallbackType&& handler) {
+    if (linked_query_) {
+      linked_query_->prepend_filter(std::forward<CallbackType>(handler));
+      // TODO: invalidate target component in the broker
+      return;
+    }
+
     auto previous_handler = std::move(handler_);
 
     handler_ = [handler = std::move(handler), previous_handler = std::move(previous_handler)] (auto&&... args) mutable {
       bool proceed = true;
-      handler(proceed, std::move(args)...);
+      auto copied_arguments = std::make_tuple(args...);
+      std::apply(handler, std::tuple_cat(std::make_tuple(&proceed), copied_arguments));
+      //handler(proceed, args...);
       if (proceed)
         previous_handler(std::move(args)...);
     };
@@ -129,7 +139,7 @@ public:
 private:
   /// Called from the client component
   template<typename CallbackType, typename... ArgumentTypes>
-  void execute(CallbackType&& callback, lifetime_weak_ptr&& lifetime, std::tuple<ArgumentTypes...>&& arguments) {
+  void execute(CallbackType&& callback, lifetime_weak_ptr lifetime, std::tuple<ArgumentTypes...>&& arguments) {
     if (!linked_query_)
       std::abort();
 
@@ -193,9 +203,10 @@ private:
 
   // Fields set on the client side. These can be pointers since the broker will invalidate the receiver set
   // if the target goes out of scope, and it's impossible to unregister an interface.
-  const if_async_query* linked_query_ = nullptr;
+  if_async_query* linked_query_ = nullptr;
   component* linked_handling_component_ = nullptr;
   executor* linked_executor_ = nullptr;
+  lifetime_weak_ptr sending_lifetime_;
   component* sending_component_ = nullptr;
   message_info msg_info_; // TODO: storing message_info like this and passing it in callback handlers isn't safe!
   bool mutual_executor_ = false;

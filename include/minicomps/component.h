@@ -88,6 +88,8 @@ public:
 
 void set_current_component(component*);
 component* get_current_component();
+void set_current_lifetime(lifetime_weak_ptr);
+lifetime_weak_ptr get_current_lifetime();
 
 }
 

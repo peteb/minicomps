@@ -15,6 +15,19 @@
             }
         },
         {
+            "label": "Build & Run Sample Application",
+            "type": "shell",
+            "command": "cd test/sample_application && make clean ; make test && ./a.out",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": {
+                "base": "$gcc",
+                "fileLocation": ["relative", "${workspaceRoot}/test/sample_application/"]
+            }
+        },
+        {
             "label": "Build & Run Build Benchmark",
             "type": "shell",
             "command": "cd test && make clean ; time make test_compile_duration && ./a.out",

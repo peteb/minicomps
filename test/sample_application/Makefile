@@ -1,0 +1,16 @@
+CXX = time -f "%e" clang++
+CXXFLAGS = -g -std=c++17 -fno-exceptions -fno-rtti -fno-threadsafe-statics -I. -I../../tools/ -I../../include/ -I../../minicoros/include/ -O3
+
+core_files = ../../src/component.o ../../src/executor.o ../../src/broker.o ../../tools/testing.o
+
+obj_files = $(core_files) test_session_system.o user/user_system_impl.o orchestration/composition_root.o session/session_system_impl.o \
+	session/session.o
+
+%.o: %.cc
+	$(CXX) -c $(CXXFLAGS) $< -o $@
+
+test: $(obj_files)
+	$(CXX) $(obj_files) -lpthread
+
+clean:
+	rm *.o
