@@ -17,6 +17,7 @@ public:
     {}
 
   using component_base::lookup_interface;
+  using component_base::subscribe_event;
 };
 
 void assert_success(composition_root& root, mc::coroutine<void>&& coro) {
@@ -145,6 +146,28 @@ public:
     return test_component_->lookup_interface<InterfaceType>();
   }
 
+  template<typename EventType>
+  mc::coroutine<EventType> await_event() {
+    test_component_->subscribe_event<EventType>([this] (const EventType& msg) {
+      auto iter = event_promises_.find(mc::get_message_info<EventType>().id);
+      if (iter == std::end(event_promises_))
+        return;
+
+      for (std::function<void(const void*)>& promise_resolver : iter->second) {
+        promise_resolver(&msg);
+      }
+
+      iter->second.clear();
+    });
+
+    return mc::coroutine<EventType>([this] (mc::promise<EventType>&& p) {
+      event_promises_[mc::get_message_info<EventType>().id].push_back([p = std::move(p)] (const void* result) {
+        const EventType* casted_result = static_cast<const EventType*>(result);
+        p({EventType{*casted_result}});
+      });
+    });
+  }
+
   void assert_success(mc::coroutine<void>&& coro) {
     return ::assert_success(root, std::move(coro));
   }
@@ -153,4 +176,5 @@ public:
 
 private:
   std::shared_ptr<test_component> test_component_ = root.add_component<test_component>();
+  std::unordered_map<mc::message_id, std::vector<std::function<void(const void*)>>> event_promises_;
 };

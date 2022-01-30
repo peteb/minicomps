@@ -18,6 +18,7 @@ public:
   session_system_impl(mc::broker& broker, mc::executor_ptr executor)
     : component_base("session_system_impl", broker, executor)
     , user_system_(lookup_interface<user_system::interface>())
+    , event_session_created_(lookup_event<session_created>())
     {}
 
   virtual void publish() override {
@@ -33,6 +34,7 @@ public:
     mc::lifetime lif;
     session new_session(new_session_id, user_system_); // TODO: remove this lookup function and instead use the copy ctor. This is better since it makes it possible to limit lifetime further in Session
     active_sessions_.push_back(std::move(new_session));
+    event_session_created_({new_session_id});
     return mc::make_successful_coroutine<int>(new_session_id);
   }
 
@@ -75,6 +77,9 @@ private:
   // Dependencies
   mc::interface<user_system::interface> user_system_;
 
+  // Events
+  mc::event<session_created> event_session_created_;
+
   // State
   std::vector<session> active_sessions_;
   int next_session_id_ = 1;
@@ -85,5 +90,6 @@ std::shared_ptr<mc::component> create_impl(mc::broker& broker, std::shared_ptr<m
 }
 
 DEFINE_INTERFACE(interface);
+DEFINE_EVENT(session_created);
 
 }

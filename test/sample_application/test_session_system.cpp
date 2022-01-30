@@ -53,9 +53,6 @@ private:
 };
 
 TEST_F(test_session_system, destroying_a_session_before_user_data_returned_does_not_crash) {
-  // TODO: can we create a coroutine using `failure`
-  // TODO: generate dependency graph
-
   // Intercepts are useful for returning custom responses. Similar to a mock.
   auto get_user = intercept(user_system->get_user, [](std::string username) {return username == "user"; });
 
@@ -79,7 +76,7 @@ TEST_F(test_session_system, simplified_destroying_a_session_before_user_data_ret
   auto get_user = intercept(user_system->get_user);
 
   assert_success(
-    create_session()
+    (await_event<session_system::session_created>() && create_session())
     .then(ignore(authenticate_session("user", "pass")))
     .then(destroy_session()) // Immediately destroy the session
     .then(get_user.await_call())
@@ -98,6 +95,3 @@ TEST_F(test_session_system, simplified_destroying_a_session_before_user_data_ret
 // Note: since I stress test the compiler by repeating code it's going to reuse template instantiations
 
 
-// TODO: sync call intercepts
-// TODO: write multithreading tests. Also, how will they work with intercepts
-// TODO: locking intercepts and how do I make them show up in the sequence diagram

@@ -15,6 +15,9 @@ class executor;
 namespace session_system {
 
 // TODO: macro prefix
+DECLARE_EVENT(session_created, {
+  int id;
+});
 
 ///
 /// Public interface
