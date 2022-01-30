@@ -98,9 +98,9 @@ TEST(test_interface_async_query_filter, prepended_query_is_invoked_and_proceeds)
   int response = 0;
   int filter_was_called_with = 0;
 
-  mapper->prepend_async_query_filter(mapper->map_if.getValueMapping, [&] (bool& proceed, int value, callback_result<int>&& result) {
+  mapper->prepend_async_query_filter(mapper->map_if.getValueMapping, [&] (int value, callback_result<int>&& result, auto next_handler) {
     filter_was_called_with = value;
-    proceed = true;
+    next_handler(value, std::move(result));
   });
 
   // When
@@ -123,8 +123,7 @@ TEST(test_interface_async_query_filter, prepended_query_can_stop_execution_and_r
   auto mapper = registry.create<mapping_component>(broker, exec);
   int response = 0;
 
-  mapper->prepend_async_query_filter(mapper->map_if.getValueMapping, [&] (bool& proceed, int value, callback_result<int>&& result) {
-    proceed = false;
+  mapper->prepend_async_query_filter(mapper->map_if.getValueMapping, [&] (int value, callback_result<int>&& result, auto next_handler) {
     result(123);
   });
 

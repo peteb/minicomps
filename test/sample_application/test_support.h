@@ -106,8 +106,7 @@ template<typename R, typename... Args>
 query_proxy<R> intercept(mc::if_async_query<R(Args...)>& func) {
   query_proxy<R> proxy;
 
-  func.prepend_filter([proxy] (bool* proceed, Args... arguments, mc::callback_result<R>&& result) mutable {
-    *proceed = false;
+  func.prepend_filter([proxy] (Args&&... arguments, mc::callback_result<R>&& result, auto next_handler) mutable {
     proxy.assign(std::move(result));
   });
 
@@ -118,13 +117,12 @@ template<typename FilterType, typename R, typename... Args>
 query_proxy<R> intercept(mc::if_async_query<R(Args...)>& func, FilterType&& filter) {
   query_proxy<R> proxy;
 
-  func.prepend_filter([proxy, filter = std::move(filter)] (bool* proceed, Args... arguments, mc::callback_result<R>&& result) mutable {
+  func.prepend_filter([proxy, filter = std::move(filter)] (Args&&... arguments, mc::callback_result<R>&& result, auto next_handler) mutable {
     if (!filter(arguments...)) {
-      *proceed = true;
+      next_handler(std::forward<Args>(arguments)..., std::move(result));
       return;
     }
 
-    *proceed = false;
     proxy.assign(std::move(result));
   });
 

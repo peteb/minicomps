@@ -72,6 +72,8 @@ TEST_F(test_session_system, destroying_a_session_before_user_data_returned_does_
     );
 }
 
+
+
 TEST_F(test_session_system, simplified_destroying_a_session_before_user_data_returned_does_not_crash) {
   auto get_user = intercept(user_system->get_user);
 
@@ -83,6 +85,8 @@ TEST_F(test_session_system, simplified_destroying_a_session_before_user_data_ret
     .then(get_user.resolve({user_system::user_info{123, "user", "pass"}}))
   );
 }
+
+
 
 // Compile performance:
 // -g -O3:

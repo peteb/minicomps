@@ -20,9 +20,9 @@ namespace mc {
 template<typename Signature>
 class if_async_query;
 
-template<typename R, typename... Args>
-class if_async_query<R(Args...)> {
-  using callback_inner_type = typename signature_util<R(Args...)>::callback_inner_signature;
+template<typename R, typename... ArgumentTypes>
+class if_async_query<R(ArgumentTypes...)> {
+  using callback_inner_type = typename signature_util<R(ArgumentTypes...)>::callback_inner_signature;
   using return_type = R;
 
 public:
@@ -46,10 +46,9 @@ public:
     mutual_executor_ = linked_executor_ == sending_component_->default_executor.get();
   }
 
-  template<typename... ArgumentTypes>
   class query_invoker {
   public:
-    query_invoker(if_async_query& async_query, lifetime_weak_ptr&& lifetime, ArgumentTypes&&... arguments)
+    query_invoker(if_async_query& async_query, lifetime_weak_ptr lifetime, ArgumentTypes&&... arguments)
       : if_async_query_(async_query)
       , lifetime_(std::move(lifetime))
       , arguments_(std::forward<ArgumentTypes>(arguments)...)
@@ -93,12 +92,12 @@ public:
 
   /// Creates an invocation object that will call this function. The object is needed because C++ doesn't allow
   /// non-pack parameters (the callback) after a parameter pack.
-  query_invoker<Args...> call(Args&&... arguments) {
-    return query_invoker<Args...>(*this, sending_lifetime_, std::forward<Args>(arguments)...);
+  query_invoker call(ArgumentTypes... arguments) {
+    return query_invoker(*this, sending_lifetime_, std::forward<ArgumentTypes>(arguments)...);
   }
 
-  mc::coroutine<return_type> operator() (Args... arguments) {
-    std::tuple<Args...> copied_arguments = std::make_tuple(arguments...);
+  mc::coroutine<return_type> operator() (ArgumentTypes... arguments) {
+    std::tuple<ArgumentTypes...> copied_arguments = std::make_tuple(arguments...);
 
     return mc::coroutine<return_type>([this, copied_arguments = std::move(copied_arguments)](mc::promise<return_type>&& promise) mutable {
       execute([promise = std::move(promise)](mc::concrete_result<return_type>&& result) {
@@ -126,19 +125,14 @@ public:
 
     auto previous_handler = std::move(handler_);
 
-    handler_ = [handler = std::move(handler), previous_handler = std::move(previous_handler)] (auto&&... args) mutable {
-      bool proceed = true;
-      auto copied_arguments = std::make_tuple(args...);
-      std::apply(handler, std::tuple_cat(std::make_tuple(&proceed), copied_arguments));
-      //handler(proceed, args...);
-      if (proceed)
-        previous_handler(std::move(args)...);
+    handler_ = [handler = std::forward<CallbackType>(handler), previous_handler = std::move(previous_handler)] (ArgumentTypes&&... args, callback_result<return_type>&& result) mutable {
+      handler(std::forward<ArgumentTypes>(args)..., std::move(result), previous_handler);
     };
   }
 
 private:
   /// Called from the client component
-  template<typename CallbackType, typename... ArgumentTypes>
+  template<typename CallbackType>
   void execute(CallbackType&& callback, lifetime_weak_ptr lifetime, std::tuple<ArgumentTypes...>&& arguments) {
     if (!linked_query_)
       std::abort();
