@@ -52,6 +52,20 @@ mc::coroutine<void> ignore(mc::coroutine<T>&& coro) {
   });
 }
 
+template<typename CallbackType>
+auto async(CallbackType&& callback) -> decltype(callback()) {
+  using coro_type = decltype(callback());
+  using return_type = typename coro_type::type;
+
+  return coro_type([callback = std::forward<CallbackType>(callback)] (mc::promise<return_type>&& p) {
+    callback()
+      .chain()
+      .evaluate_into([p = std::move(p)](mc::concrete_result<return_type>&& result) {
+        p(std::move(result));
+      });
+  });
+}
+
 template<typename R>
 class query_proxy {
 public:

@@ -27,27 +27,20 @@ public:
   }
 
   mc::coroutine<void> destroy_session() {
-    return mc::coroutine<void>([this] (mc::promise<void>&& p) {
-      session_system->destroy_session(last_created_session_id_)
+    return async([this] {
+      return session_system->destroy_session(last_created_session_id_)
         .then([this] {
           last_created_session_id_ = 0;
-        })
-        .chain()
-        .evaluate_into([p = std::move(p)](mc::concrete_result<void>&& result) {
-          p(std::move(result));
         });
     });
   }
 
   mc::coroutine<void> authenticate_session(std::string username, std::string password) {
-    return mc::coroutine<void>([this, username = std::move(username), password = std::move(password)] (mc::promise<void>&& p) {
-      session_system->authenticate_session(last_created_session_id_, username, password)
-        .chain()
-        .evaluate_into([p = std::move(p)](mc::concrete_result<void>&& result) {
-          p(std::move(result));
-        });
+    return async([this, username = std::move(username), password = std::move(password)] {
+      return session_system->authenticate_session(last_created_session_id_, username, password);
     });
   }
+
   /// Interfaces
   mc::interface<user_system::interface> user_system = lookup_interface<user_system::interface>();
   mc::interface<session_system::interface> session_system = lookup_interface<session_system::interface>();
