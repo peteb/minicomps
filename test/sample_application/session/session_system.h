@@ -14,6 +14,8 @@ class executor;
 
 namespace session_system {
 
+// TODO: macro prefix
+
 ///
 /// Public interface
 ///

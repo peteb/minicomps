@@ -66,6 +66,11 @@ public:
       infos.push_back(poly->create_dependency_info());
     }
 
+    for (auto& interface : interface_refs_) {
+      interface->force_resolve();
+      infos.push_back(interface->create_dependency_info());
+    }
+
     for (const dependency_info& info : published_dependencies_) {
       infos.push_back(info);
     }
@@ -120,6 +125,7 @@ protected:
     const message_id msg_id = get_message_id<InterfaceType>();
     broker_.associate(msg_id, shared_from_this());
     interfaces_[msg_id] = &impl;
+    published_dependencies_.push_back({dependency_info::EXPORT, dependency_info::INTERFACE, get_message_info<InterfaceType>(), {}});
   }
 
   /// Publish a callback_result member function as an interface async query

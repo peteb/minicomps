@@ -1,5 +1,5 @@
 CXX = time -f "%e" clang++
-CXXFLAGS = -std=c++17 -fno-exceptions -fno-rtti -fno-threadsafe-statics -I. -I../../tools/ -I../../include/ -I../../minicoros/include/ -O0
+CXXFLAGS = -std=c++17 -fno-exceptions -fvisibility-inlines-hidden -fno-rtti -fno-threadsafe-statics -I. -I../../tools/ -I../../include/ -I../../minicoros/include/ -O0
 
 core_files = ../../src/component.o ../../src/executor.o ../../src/broker.o ../../tools/testing.o
 

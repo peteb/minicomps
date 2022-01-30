@@ -8,14 +8,14 @@
 #include "session/session_system.h"
 
 #include <sstream>
+#include <unordered_map>
+#include <unordered_set>
 
 composition_root::composition_root()
   : executor_(std::make_shared<mc::executor>())
 {
   components_.push_back(user_system::create_impl(broker_, executor_));
   components_.push_back(session_system::create_impl(broker_, executor_));
-
-  // TODO: check that all dependencies have been fulfilled
 
   for (auto& component : components_) {
     component->publish();
@@ -98,4 +98,85 @@ void composition_root::on_invoke(const mc::component* sender, const mc::componen
   }
 
   current_sequence_diagram_ += ss.str();
+}
+
+std::vector<dependency> composition_root::get_missing_dependencies() {
+  std::unordered_set<mc::message_id> exported_interfaces;
+
+  for (std::shared_ptr<mc::component>& component : components_) {
+    std::vector<mc::dependency_info> dependencies = component->describe_dependencies();
+
+    for (mc::dependency_info& dependency : dependencies) {
+      if (dependency.type == mc::dependency_info::INTERFACE && dependency.direction == mc::dependency_info::EXPORT)
+        exported_interfaces.insert(dependency.msg_info.id);
+    }
+  }
+
+  std::vector<dependency> missing_dependencies;
+
+  for (std::shared_ptr<mc::component>& component : components_) {
+    std::vector<mc::dependency_info> dependencies = component->describe_dependencies();
+
+    for (mc::dependency_info& dependency : dependencies) {
+      if (dependency.type == mc::dependency_info::INTERFACE && dependency.direction == mc::dependency_info::IMPORT) {
+        if (exported_interfaces.count(dependency.msg_info.id) == 0)
+          missing_dependencies.push_back({component, dependency.msg_info});
+      }
+    }
+  }
+
+  return missing_dependencies;
+}
+
+bool composition_root::verify_dependencies() {
+  std::vector<dependency> missing_dependencies = get_missing_dependencies();
+
+  for (dependency& dependency : missing_dependencies) {
+    std::cout << "Component " << dependency.consumer->name << " has an unresolved interface dependency to '" << dependency.info.name << "'" << std::endl;
+  }
+
+  return missing_dependencies.empty();
+}
+
+std::string composition_root::dump_dependency_graph() {
+  std::stringstream ss;
+
+  ss << "digraph {\n";
+
+  // TODO: extract this into a separate dependency graph
+  std::unordered_map<mc::message_id, std::shared_ptr<mc::component>> interface_implementors;
+
+  // Collect interface implementors
+  for (std::shared_ptr<mc::component>& component : components_) {
+    ss << component->name << "\n";
+
+    std::vector<mc::dependency_info> dependencies = component->describe_dependencies();
+
+    for (mc::dependency_info& dependency : dependencies) {
+      if (dependency.type == mc::dependency_info::INTERFACE && dependency.direction == mc::dependency_info::EXPORT) {
+        interface_implementors[dependency.msg_info.id] = component;
+      }
+    }
+  }
+
+  // Go through imports and create arrows
+  for (std::shared_ptr<mc::component>& component : components_) {
+    std::vector<mc::dependency_info> dependencies = component->describe_dependencies();
+
+    for (mc::dependency_info& dependency : dependencies) {
+      if (dependency.type == mc::dependency_info::INTERFACE && dependency.direction == mc::dependency_info::IMPORT) {
+        if (std::shared_ptr<mc::component> implementor = interface_implementors[dependency.msg_info.id]) {
+          ss << "\"" << component->name << "\" -> \"" << implementor->name << "\"\n";
+        }
+        else {
+          ss << "\"" << component->name << "\" -> \"" << dependency.msg_info.name << "\" [label = \"missing impl\"]\n";
+        }
+
+      }
+    }
+  }
+
+  ss << "}\n";
+
+  return ss.str();
 }

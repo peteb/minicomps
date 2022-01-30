@@ -133,7 +133,7 @@ query_proxy<R> intercept(mc::if_async_query<R(Args...)>& func, FilterType&& filt
 class test_fixture {
 public:
   test_fixture() {
-
+    root.verify_dependencies();
   }
 
   ~test_fixture() {

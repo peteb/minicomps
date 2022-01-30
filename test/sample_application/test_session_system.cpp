@@ -12,6 +12,9 @@ class test_session_system : public test_fixture {
 public:
   test_session_system() {
     root.enable_sequence_diagram_gen();
+    std::cout << root.dump_dependency_graph() << std::endl;
+    if (!root.verify_dependencies())
+      std::abort();
   }
 
   ~test_session_system() {
@@ -50,10 +53,7 @@ private:
 };
 
 TEST_F(test_session_system, destroying_a_session_before_user_data_returned_does_not_crash) {
-  // FINDING: benefit of mock: namespace is correct automatically
-  // FINDING: I have to read the implementations to see how to use functions. Make it easier
-  // FINDING: can we create a coroutine using `failure`
-
+  // TODO: can we create a coroutine using `failure`
   // TODO: generate dependency graph
 
   // Intercepts are useful for returning custom responses. Similar to a mock.
@@ -96,3 +96,8 @@ TEST_F(test_session_system, simplified_destroying_a_session_before_user_data_ret
 //   ~3.8s (without the extra functions and test cases: ~3.5s)
 
 // Note: since I stress test the compiler by repeating code it's going to reuse template instantiations
+
+
+// TODO: sync call intercepts
+// TODO: write multithreading tests. Also, how will they work with intercepts
+// TODO: locking intercepts and how do I make them show up in the sequence diagram
