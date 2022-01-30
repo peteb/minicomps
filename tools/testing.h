@@ -36,6 +36,19 @@ T* stop_optimizations(T* object) {
   static test_registration suite_name##_##test_name##_registration(MINICOROS_STR(suite_name), MINICOROS_STR(test_name), TEST_FUNCTION_NAME(suite_name, test_name)); \
   void TEST_FUNCTION_NAME(suite_name, test_name)(void)
 
+#define TEST_F(fixture, test_name) \
+  void TEST_FUNCTION_NAME(fixture, test_name)(void); \
+  static test_registration fixture##_##test_name##_registration(MINICOROS_STR(fixture), MINICOROS_STR(test_name), TEST_FUNCTION_NAME(fixture, test_name)); \
+  class fixture##_##test_name##_class : public fixture {      \
+  public:                                                     \
+    void execute();                                           \
+  };                                                          \
+  void TEST_FUNCTION_NAME(fixture, test_name)(void) {         \
+    fixture##_##test_name##_class instance;                   \
+    instance.execute();                                       \
+  }                                                           \
+  void fixture##_##test_name##_class::execute()
+
 class test_suite {
 public:
   test_suite(const char* name) : name_(name) {}
