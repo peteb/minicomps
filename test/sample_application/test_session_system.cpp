@@ -86,3 +86,13 @@ TEST_F(test_session_system, simplified_destroying_a_session_before_user_data_ret
     .then(get_user.resolve({user_system::user_info{123, "user", "pass"}}))
   );
 }
+
+// Compile performance:
+// -g -O3:
+//   ~15.3s for repeating the "simplified_destroying_a_session..." test case 32 times together with a session_system that has 28 functions. 15.5s if I add 30 functions to user_system
+// -O3:
+//   ~11.3s (33 functions in user_system, 28 in session_system, 32 test cases)
+// -O0:
+//   ~3.8s (without the extra functions and test cases: ~3.5s)
+
+// Note: since I stress test the compiler by repeating code it's going to reuse template instantiations

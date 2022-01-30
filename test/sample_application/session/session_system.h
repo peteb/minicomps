@@ -38,4 +38,5 @@ std::shared_ptr<mc::component> create_impl(mc::broker& broker, std::shared_ptr<m
 
 }
 
+// TODO: INTERFACE rather than INTERFACE2
 // TODO: INTERFACE rather than DECLARE_INTERFACE
