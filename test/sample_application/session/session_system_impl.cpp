@@ -1,9 +1,11 @@
 #include "session_system.h"
 #include "user/user_system.h"
 #include "session.h"
+#include "component_types.h"
 
 #include <minicomps/component_base.h>
 #include <minicomps/interface.h>
+#include <minicomps/messaging.h>
 
 #include <unordered_map>
 #include <vector>
@@ -13,12 +15,10 @@ namespace session_system {
 ///
 /// Implementation of the Session system
 ///
-class session_system_impl : public mc::component_base<session_system_impl> {
+class session_system_impl : public mc::component_base<session_system_impl, component_types::session> {
 public:
   session_system_impl(mc::broker& broker, mc::executor_ptr executor)
     : component_base("session_system_impl", broker, executor)
-    , user_system_(lookup_interface<user_system::interface>())
-    , event_session_created_(lookup_event<session_created>())
     {}
 
   virtual void publish() override {
@@ -75,10 +75,10 @@ private:
   interface if_;
 
   // Dependencies
-  mc::interface<user_system::interface> user_system_;
+  mc::interface<user_system::interface> user_system_ = lookup_interface<user_system::interface>();
 
   // Events
-  mc::event<session_created> event_session_created_;
+  mc::event<session_created> event_session_created_ = lookup_event<session_created>();
 
   // State
   std::vector<session> active_sessions_;

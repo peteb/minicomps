@@ -97,6 +97,11 @@ public:
     });
   }
 
+  mc::coroutine<void> await_and_resolve(mc::concrete_result<R>&& result) {
+    return await_call()
+      .then(resolve(std::move(result)));
+  }
+
 private:
   std::shared_ptr<std::optional<mc::callback_result<R>>> result_holder_ = std::make_shared<std::optional<mc::callback_result<R>>>();
   mc::promise<void> await_call_promise_;

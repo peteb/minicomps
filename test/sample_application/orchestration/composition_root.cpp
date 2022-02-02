@@ -142,14 +142,13 @@ std::string composition_root::dump_dependency_graph() {
   std::stringstream ss;
 
   ss << "digraph {\n";
+  ss << "rankdir=LR;\n";
 
   // TODO: extract this into a separate dependency graph
   std::unordered_map<mc::message_id, std::shared_ptr<mc::component>> interface_implementors;
 
   // Collect interface implementors
   for (std::shared_ptr<mc::component>& component : components_) {
-    ss << component->name << "\n";
-
     std::vector<mc::dependency_info> dependencies = component->describe_dependencies();
 
     for (mc::dependency_info& dependency : dependencies) {
@@ -159,19 +158,55 @@ std::string composition_root::dump_dependency_graph() {
     }
   }
 
-  // Go through imports and create arrows
+  // Group by type
+  std::unordered_map<const char*, std::vector<std::shared_ptr<mc::component>>> components_per_type;
+
   for (std::shared_ptr<mc::component>& component : components_) {
     std::vector<mc::dependency_info> dependencies = component->describe_dependencies();
 
-    for (mc::dependency_info& dependency : dependencies) {
-      if (dependency.type == mc::dependency_info::INTERFACE && dependency.direction == mc::dependency_info::IMPORT) {
-        if (std::shared_ptr<mc::component> implementor = interface_implementors[dependency.msg_info.id]) {
-          ss << "\"" << component->name << "\" -> \"" << implementor->name << "\"\n";
-        }
-        else {
-          ss << "\"" << component->name << "\" -> \"" << dependency.msg_info.name << "\" [label = \"missing impl\"]\n";
-        }
+    bool has_type = false;
 
+    for (mc::dependency_info& dependency : dependencies) {
+      if (dependency.type == mc::dependency_info::GROUP && dependency.direction == mc::dependency_info::EXPORT) {
+        components_per_type[dependency.msg_info.name].push_back(component);
+        has_type = true;
+      }
+    }
+    // TODO: Clean this up
+    if (!has_type)
+      components_per_type[""].push_back(component);
+  }
+
+  int cluster_count = 0;
+
+  // Go through imports and create arrows
+  for (auto& [type_name, components] : components_per_type) {
+    if (type_name[0]) {
+      ss << "subgraph cluster_" << cluster_count++ << " {\n";
+      ss << "label = \"" << type_name << "\";\n";
+    }
+
+    // Print the nodes first
+    for (std::shared_ptr<mc::component>& component : components) {
+      ss << component->name << "\n";
+    }
+
+    if (type_name[0])
+      ss << "}\n";
+
+    for (std::shared_ptr<mc::component>& component : components) {
+      std::vector<mc::dependency_info> dependencies = component->describe_dependencies();
+
+      for (mc::dependency_info& dependency : dependencies) {
+        if (dependency.type == mc::dependency_info::INTERFACE && dependency.direction == mc::dependency_info::IMPORT) {
+          if (std::shared_ptr<mc::component> implementor = interface_implementors[dependency.msg_info.id]) {
+            ss << "\"" << component->name << "\" -> \"" << implementor->name << "\"\n";
+          }
+          else {
+            ss << "\"" << component->name << "\" -> \"" << dependency.msg_info.name << "\" [label = \"missing impl\"]\n";
+          }
+
+        }
       }
     }
   }

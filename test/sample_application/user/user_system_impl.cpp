@@ -1,4 +1,5 @@
 #include "user_system.h"
+#include "component_types.h"
 
 #include <minicomps/component_base.h>
 
@@ -7,7 +8,7 @@
 
 namespace user_system {
 
-class user_system_impl : public mc::component_base<user_system_impl> {
+class user_system_impl : public mc::component_base<user_system_impl, component_types::service> {
 public:
   user_system_impl(mc::broker& broker, mc::executor_ptr executor)
     : component_base("user_system_impl", broker, executor)

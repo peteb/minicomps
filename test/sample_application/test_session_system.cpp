@@ -67,8 +67,7 @@ TEST_F(test_session_system, destroying_a_session_before_user_data_returned_does_
         // Immediately destroy the session
         return session_system->destroy_session(session_id);
       })
-      .then(get_user.await_call())
-      .then(get_user.resolve({user_system::user_info{123, "user", "pass"}}))
+      .then(get_user.await_and_resolve({user_system::user_info{123, "user", "pass"}}))
     );
 }
 
@@ -81,8 +80,7 @@ TEST_F(test_session_system, simplified_destroying_a_session_before_user_data_ret
     (await_event<session_system::session_created>() && create_session())
     .then(ignore(authenticate_session("user", "pass")))
     .then(destroy_session()) // Immediately destroy the session
-    .then(get_user.await_call())
-    .then(get_user.resolve({user_system::user_info{123, "user", "pass"}}))
+    .then(get_user.await_and_resolve({user_system::user_info{123, "user", "pass"}}))
   );
 }
 

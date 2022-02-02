@@ -43,7 +43,8 @@ struct dependency_info {
     ASYNC_MONO,
     SYNC_MONO,
     ASYNC_POLY,
-    INTERFACE
+    INTERFACE,
+    GROUP
   } type;
 
   const message_info& msg_info;

@@ -154,4 +154,6 @@ const message_info& get_message_info() {
 
 #define DEFINE_INTERFACE(name) MESSAGE_DEFINITION(name)
 
+// TODO: MESSAGE_DECLARATION vs DECLARE_MESSAGE
+
 #endif // MINICOMPS_MESSAGING_H_

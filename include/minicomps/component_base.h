@@ -23,16 +23,23 @@
 #include <unordered_map>
 #include <vector>
 #include <mutex>
+#include <type_traits>
 
 namespace mc {
 
 /// Utilities for communicating with other components
-template<typename SubclassType>
+template<typename SubclassType, typename GroupType = void>
 class component_base : public component, public std::enable_shared_from_this<SubclassType> {
   using std::enable_shared_from_this<SubclassType>::shared_from_this;
 
 protected:
-  component_base(const char* name, broker& broker, executor_ptr executor) : component(name, executor), broker_(broker) {}
+  component_base(const char* name, broker& broker, executor_ptr executor)
+    : component(name, executor), broker_(broker) {
+
+    if constexpr (!std::is_void<GroupType>()) {
+      add_dependency_info({mc::dependency_info::EXPORT, mc::dependency_info::GROUP, mc::get_message_info<GroupType>(), {}});
+    }
+  }
 
   ~component_base() {
     if (published_) {
@@ -294,6 +301,10 @@ protected:
       return nullptr;
 
     return iter->second;
+  }
+
+  void add_dependency_info(dependency_info&& info) {
+    published_dependencies_.push_back(std::move(info));
   }
 
 private:
