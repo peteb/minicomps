@@ -83,6 +83,7 @@ public:
   const executor_ptr default_executor;  /// Handles incoming async requests and responses
   component_listener* listener;
   lifetime default_lifetime;
+  bool allow_direct_call_async = true;
 
   std::recursive_mutex lock;    /// The component-level lock, used for synchronous queries across threads of execution
 };

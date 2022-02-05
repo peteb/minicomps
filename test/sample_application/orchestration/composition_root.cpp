@@ -18,6 +18,7 @@ composition_root::composition_root()
   components_.push_back(session_system::create_impl(broker_, executor_));
 
   for (auto& component : components_) {
+    component->allow_direct_call_async = false;
     component->publish();
   }
 }
@@ -29,7 +30,7 @@ composition_root::~composition_root() {
 }
 
 void composition_root::update() {
-
+  executor_->execute();
 }
 
 void composition_root::enable_sequence_diagram_gen() {

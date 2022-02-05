@@ -20,7 +20,7 @@ public:
     publish_async_query(if_.get_user, &user_system_impl::get_user);
   }
 
-  mc::coroutine<int> create_user(const user_info& new_user) {
+  mc::coroutine<int> create_user(user_info new_user) {
     return mc::make_successful_coroutine<int>(123);
   }
 

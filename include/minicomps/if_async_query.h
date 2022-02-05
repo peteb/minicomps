@@ -12,6 +12,7 @@
 #include <functional>
 #include <tuple>
 #include <iostream>
+#include <cassert>
 
 #define ASYNC_QUERY(name, signature) mc::if_async_query<signature> name{MINICOMPS_STR(name)}
 
@@ -43,7 +44,14 @@ public:
     linked_handling_component_ = other.handling_component_.lock().get(); // TODO: check for null
     linked_executor_ = other.handling_executor_.lock().get();
     msg_info_.name = other.name_;
-    mutual_executor_ = linked_executor_ == sending_component_->default_executor.get();
+
+    assert(linked_handling_component_);
+    assert(linked_executor_);
+
+    if (linked_handling_component_->allow_direct_call_async)
+      call_directly_ = linked_executor_ == sending_component_->default_executor.get();
+    else
+      call_directly_ = false;
   }
 
   class query_invoker {
@@ -99,6 +107,7 @@ public:
   mc::coroutine<return_type> operator() (ArgumentTypes... arguments) {
     std::tuple<ArgumentTypes...> copied_arguments = std::make_tuple(arguments...);
 
+    // TODO: in c++20, capture all arguments without going through a tuple, then make `execute` not take a tuple and not use std::apply. Leads to a nicer callstack.
     return mc::coroutine<return_type>([this, copied_arguments = std::move(copied_arguments)](mc::promise<return_type>&& promise) mutable {
       execute([promise = std::move(promise)](mc::concrete_result<return_type>&& result) {
         promise(std::move(result));
@@ -150,7 +159,7 @@ private:
       std::abort();
 
     // TODO: refactor this code duplication vs async_query.h
-    if (mutual_executor_) {
+    if (call_directly_) {
       if (linked_handling_component_->listener)
         linked_handling_component_->listener->on_invoke(sending_component_, linked_handling_component_, msg_info_, message_type::REQUEST);
 
@@ -212,7 +221,7 @@ private:
   lifetime_weak_ptr sending_lifetime_;
   component* sending_component_ = nullptr;
   message_info msg_info_; // TODO: storing message_info like this and passing it in callback handlers isn't safe!
-  bool mutual_executor_ = false;
+  bool call_directly_ = false;
 };
 
 }
