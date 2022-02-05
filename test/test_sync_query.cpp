@@ -106,7 +106,7 @@ TEST(sync_query, reachable_returns_false_when_receiver_is_deleted) {
   sender->sum.reachable(); // To trigger caching
 
   // When
-  receiver->unpublish();
+  receiver->unpublish_dependencies();
   receiver.reset();
 
   // Then

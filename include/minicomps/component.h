@@ -71,8 +71,8 @@ public:
   component(const std::string& name, executor_ptr executor) : name(name), default_executor(executor), listener(nullptr) {}
 
   virtual ~component() = default;
-  virtual void publish() {}
-  virtual void unpublish() {}
+  virtual void publish_dependencies() {}
+  virtual void unpublish_dependencies() {}
   virtual void* lookup_sync_handler(message_id msg_id) = 0;
   virtual void* lookup_async_handler(message_id msg_id) = 0;
   virtual void* lookup_interface(message_id msg_id) = 0;

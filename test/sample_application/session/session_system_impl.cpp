@@ -32,7 +32,6 @@ public:
 
   mc::coroutine<int> create_session() {
     const int new_session_id = next_session_id_++;
-    mc::lifetime lif;
     session new_session(new_session_id, user_system_); // TODO: remove this lookup function and instead use the copy ctor. This is better since it makes it possible to limit lifetime further in Session
     active_sessions_.push_back(std::move(new_session));
     event_session_created_({new_session_id});

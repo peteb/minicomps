@@ -1,6 +1,5 @@
-* sync call intercepts
 * write multithreading tests. Also, how will they work with intercepts
-* locking intercepts and can they show up in the sequence diagram
+* locking intercepts
+* can we make intercepts show up in the sequence diagram
 * can we create a coroutine using `failure`
-* how do we protect against missing publishing a query in an interface?
 * verify a publisher for an event exists

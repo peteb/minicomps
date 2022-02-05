@@ -43,16 +43,23 @@ protected:
 
   ~component_base() {
     if (published_) {
-      unpublish();
+      unpublish_dependencies();
     }
   }
 
+  virtual void publish() {}
+
 public:
-  virtual void publish() override {
+  virtual void publish_dependencies() final {
+    publish();
+
     published_ = true;
+
+    for (auto& check : post_publish_checks_)
+      check();
   }
 
-  virtual void unpublish() override {
+  virtual void unpublish_dependencies() override {
     // TODO: check if there are any sync query dependencies on this component. In that case, warn!
     broker_.disassociate_everything(this);
     // NOTE! It's important that we remove our associations here (and cached queries etc), but we SHOULDN'T REMOVE OUR OWN HANDLERS HERE since
@@ -133,15 +140,27 @@ protected:
     broker_.associate(msg_id, shared_from_this());
     interfaces_[msg_id] = &impl;
     published_dependencies_.push_back({dependency_info::EXPORT, dependency_info::INTERFACE, get_message_info<InterfaceType>(), {}});
+
+    // Add a check that verifies that all queries in the interface have been implemented
+
+    post_publish_checks_.push_back([&] {
+      set_current_component(this);
+      set_current_lifetime(default_lifetime.create_weak_ptr());
+
+      // Creating a copy of the interface copies all of the queries, which verifies that they've been implemented
+      InterfaceType interface_view = impl;
+      set_current_lifetime({});
+      set_current_component(nullptr);
+    });
   }
 
   /// Publish a callback_result member function as an interface async query
   template<typename R, typename... ArgumentTypes>
-  void publish_async_query(if_async_query<R(ArgumentTypes...)>& interface_query, void(SubclassType::*memfun)(ArgumentTypes..., mc::callback_result<R>&&), executor_ptr executor_override = nullptr) {
+  void publish_async_query(if_async_query<R(ArgumentTypes...)>& interface_query, void(SubclassType::*memfun)(mc::callback_result<R>&&, ArgumentTypes...), executor_ptr executor_override = nullptr) {
     std::weak_ptr<executor> chosen_executor = executor_override ? executor_override : default_executor;
 
     interface_query.publish([this, memfun] (ArgumentTypes&&... arguments, mc::callback_result<R>&& resolver) {
-      (static_cast<SubclassType*>(this)->*memfun)(std::forward<ArgumentTypes>(arguments)..., std::move(resolver));
+      (static_cast<SubclassType*>(this)->*memfun)(std::move(resolver), std::forward<ArgumentTypes>(arguments)...);
     }, shared_from_this(), std::move(chosen_executor));
   }
 
@@ -316,6 +335,7 @@ private:
   std::vector<std::shared_ptr<mono_ref>> mono_refs_; // Reset shared_ptrs in mono_refs to avoid memory leaks at shutdown
   std::vector<std::shared_ptr<poly_ref>> poly_refs_; // ... and in poly_refs TODO: common base class
   std::vector<std::shared_ptr<interface_ref>> interface_refs_;
+  std::vector<std::function<void()>> post_publish_checks_;
 
   std::vector<dependency_info> published_dependencies_;
   bool published_ = false;

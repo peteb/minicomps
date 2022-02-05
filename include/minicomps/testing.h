@@ -17,7 +17,7 @@ public:
   template<typename ComponentType, typename... ArgumentTypes>
   std::shared_ptr<ComponentType> create(ArgumentTypes&&... args) {
     auto component = std::make_shared<ComponentType>(std::forward<ArgumentTypes>(args)...);
-    component->publish();
+    component->publish_dependencies();
     return component;
   }
 
@@ -27,7 +27,7 @@ public:
 
   ~component_registry() {
     for (auto& component : components_) {
-      component->unpublish();
+      component->unpublish_dependencies();
     }
   }
 

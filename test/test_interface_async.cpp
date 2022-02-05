@@ -50,7 +50,7 @@ public:
     publish_async_query(receiver_.flow_controlled_function, &receiver_component_impl::flow_controlled_function, flow_executor);
   }
 
-  void frobnicate_impl(int value, callback_result<int>&& result) {
+  void frobnicate_impl(callback_result<int>&& result, int value) {
     received_value = value;
     result_ptr = std::make_shared<callback_result<int>>(std::move(result));
   }

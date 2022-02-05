@@ -34,6 +34,12 @@ public:
   /// local view of the handling interface.
   if_async_query(if_async_query& other) {
     linked_query_ = &other;
+
+    if (!linked_query_->handler_) {
+      std::cerr << "component hasn't implemented '" << linked_query_->name_ << "'" << std::endl;
+      std::abort();
+    }
+
     sending_component_ = get_current_component();
     sending_lifetime_ = get_current_lifetime();
 

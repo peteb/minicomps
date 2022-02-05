@@ -41,7 +41,7 @@ public:
   }
 
 private:
-  void sum(int t1, int t2, callback_result<int>&& sum_result) {
+  void sum(callback_result<int>&& sum_result, int t1, int t2) {
     mapper_->getValueMapping.call(t1).with_successful_callback(std::move(sum_result), [this, t2](int t1_mapped, auto&& sum_result) {
       mapper_->getValueMapping.call(t2).with_successful_callback(std::move(sum_result), [this, t1_mapped](int t2_mapped, auto&& sum_result) mutable {
         sum_result(t1_mapped + t2_mapped);
@@ -68,7 +68,7 @@ public:
     publish_async_query(map_if.getValueMapping, &mapping_component::getValueMapping);
   }
 
-  void getValueMapping(int value, callback_result<int>&& result) {
+  void getValueMapping(callback_result<int>&& result, int value) {
     was_called = true;
     result(value * 2);
   }

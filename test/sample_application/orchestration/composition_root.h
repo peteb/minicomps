@@ -26,7 +26,7 @@ public:
   std::shared_ptr<T> add_component() {
     auto component = std::make_shared<T>(broker_, executor_);
     components_.push_back(component);
-    component->publish();
+    component->publish_dependencies();
     return component;
   }
 

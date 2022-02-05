@@ -19,13 +19,13 @@ composition_root::composition_root()
 
   for (auto& component : components_) {
     component->allow_direct_call_async = false;
-    component->publish();
+    component->publish_dependencies();
   }
 }
 
 composition_root::~composition_root() {
   for (auto& component : components_) {
-    component->unpublish();
+    component->unpublish_dependencies();
   }
 }
 
