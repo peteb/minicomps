@@ -69,7 +69,7 @@ public:
     }
 
     template<typename OuterResultType, typename CallbackType>
-    query_invoker&& with_successful_callback(OuterResultType&& outer_result, CallbackType&& callback) && {
+    query_invoker&& with_successful_callback(OuterResultType outer_result, CallbackType callback) && {
       std::move(*this).with_callback([outer_result = std::move(outer_result), callback = std::move(callback)](mc::concrete_result<return_type>&& inner_result) mutable {
         if (!inner_result.success()) {
           outer_result(std::move(*inner_result.get_failure()));
@@ -108,7 +108,7 @@ public:
 
   /// Called by the handling component's publish function
   template<typename CallbackType>
-  void publish(CallbackType&& callback, std::weak_ptr<component>&& handling_component, std::weak_ptr<executor>&& executor) {
+  void publish(CallbackType callback, std::weak_ptr<component>&& handling_component, std::weak_ptr<executor>&& executor) {
     // TODO: check that we haven't already been published
     handler_ = std::move(callback);
     handling_component_ = std::move(handling_component);
@@ -116,18 +116,27 @@ public:
   }
 
   template<typename CallbackType>
-  void prepend_filter(CallbackType&& handler) {
+  void prepend_filter(CallbackType handler) {
     if (linked_query_) {
+      auto component = linked_handling_component_;
+      component->lock.lock();
       linked_query_->prepend_filter(std::forward<CallbackType>(handler));
+      component->lock.unlock();
       // TODO: invalidate target component in the broker
       return;
     }
 
-    auto previous_handler = std::move(handler_);
+    if (std::shared_ptr<component> this_component = handling_component_.lock()) {
+      this_component->lock.lock();
 
-    handler_ = [handler = std::forward<CallbackType>(handler), previous_handler = std::move(previous_handler)] (ArgumentTypes&&... args, callback_result<return_type>&& result) mutable {
-      handler(std::forward<ArgumentTypes>(args)..., std::move(result), previous_handler);
-    };
+      auto previous_handler = std::move(handler_);
+
+      handler_ = [handler = std::forward<CallbackType>(handler), previous_handler = std::move(previous_handler)] (ArgumentTypes&&... args, callback_result<return_type>&& result) mutable {
+        handler(std::forward<ArgumentTypes>(args)..., std::move(result), previous_handler);
+      };
+
+      this_component->lock.unlock();
+    }
   }
 
 private:

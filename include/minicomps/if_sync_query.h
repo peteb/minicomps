@@ -14,7 +14,16 @@
 namespace mc {
 
 template<typename Signature>
-class if_sync_query {
+class if_sync_query;
+
+/// Represents either:
+///   * the actual handling code in the target component
+///   * or a proxy to another if_sync_query (which holds the actual code)
+///
+/// The reason for why they're the same class is that it optimizes for syntax and less typing for the user.
+template<typename R, typename... ArgumentTypes>
+class if_sync_query<R(ArgumentTypes...)> {
+  using Signature = R(ArgumentTypes...);
   using return_type = typename signature_util<Signature>::return_type;
 
 public:
@@ -23,7 +32,7 @@ public:
 
   /// Called when the client component has looked up the handler component. Used to create a
   /// local view of the handling interface.
-  if_sync_query(const if_sync_query& other) {
+  if_sync_query(if_sync_query& other) {
     linked_query_ = &other;
     sending_component_ = get_current_component();
 
@@ -37,8 +46,7 @@ public:
     mutual_executor_ = linked_executor_ == sending_component_->default_executor.get();
   }
 
-  template<typename... Args>
-  return_type operator() (Args&&... arguments) {
+  return_type operator() (ArgumentTypes&&... arguments) {
     if (!linked_query_)
       std::abort();
 
@@ -71,7 +79,7 @@ public:
 
       // We can skip the lock since the same executor is never updated from different threads
       listener_invoker invoker(listener, linked_handling_component_, sending_component_, msg_info_, message_type::RESPONSE);
-      return linked_query_->handler_(std::forward<Args>(arguments)...);
+      return linked_query_->handler_(std::forward<ArgumentTypes>(arguments)...);
     }
     else {
       if (listener)
@@ -79,17 +87,38 @@ public:
 
       listener_invoker invoker(listener, linked_handling_component_, sending_component_, msg_info_, message_type::LOCKED_RESPONSE);
       std::lock_guard<std::recursive_mutex> lg(linked_handling_component_->lock);
-      return linked_query_->handler_(std::forward<Args>(arguments)...);
+      return linked_query_->handler_(std::forward<ArgumentTypes>(arguments)...);
     }
   }
 
   /// Called by the handling component's publish function
   template<typename CallbackType>
-  void publish(CallbackType&& callback, std::weak_ptr<component>&& handling_component, std::weak_ptr<executor>&& executor) {
+  void publish(CallbackType callback, std::weak_ptr<component>&& handling_component, std::weak_ptr<executor>&& executor) {
     // TODO: check that we haven't already been published
     handler_ = std::move(callback);
     handling_component_ = std::move(handling_component);
     handling_executor_ = std::move(executor);
+  }
+
+  template<typename CallbackType>
+  void prepend_filter(CallbackType handler) {
+    if (linked_query_) {
+      linked_query_->prepend_filter(std::forward<CallbackType>(handler));
+      // TODO: invalidate target component in the broker
+      return;
+    }
+
+    if (std::shared_ptr<component> this_component = handling_component_.lock()) {
+      this_component->lock.lock();
+
+      auto previous_handler = std::move(handler_);
+
+      handler_ = [handler = std::forward<CallbackType>(handler), previous_handler = std::move(previous_handler)] (ArgumentTypes&&... args) mutable -> R {
+        return handler(std::forward<ArgumentTypes>(args)..., previous_handler);
+      };
+
+      this_component->lock.unlock();
+    }
   }
 
 private:
@@ -101,7 +130,7 @@ private:
 
   // Fields set on the client side. These can be pointers since the broker will invalidate the receiver set
   // if the target goes out of scope, and it's impossible to unregister an interface.
-  const if_sync_query* linked_query_ = nullptr;
+  if_sync_query* linked_query_ = nullptr;
   component* linked_handling_component_ = nullptr;
   executor* linked_executor_ = nullptr;
   component* sending_component_ = nullptr;

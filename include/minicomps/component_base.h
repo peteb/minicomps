@@ -88,7 +88,7 @@ public:
 protected:
   /// Publishes a callable as a synchronous query
   template<typename MessageType, typename CallbackType>
-  void publish_sync_query(CallbackType&& handler) {
+  void publish_sync_query(CallbackType handler) {
     const message_id msg_id = get_message_id<MessageType>();
     broker_.associate(msg_id, shared_from_this());
 
@@ -108,7 +108,7 @@ protected:
 
   /// Publishes a callable as an asynchronous query
   template<typename MessageType, typename CallbackType>
-  void publish_async_query(CallbackType&& handler, executor_ptr executor_override = nullptr) {
+  void publish_async_query(CallbackType handler, executor_ptr executor_override = nullptr) {
     const message_id msg_id = get_message_id<MessageType>();
     broker_.associate(msg_id, shared_from_this());
 
@@ -136,22 +136,21 @@ protected:
   }
 
   /// Publish a callback_result member function as an interface async query
-  template<typename Signature, typename... ArgumentTypes>
-  void publish_async_query(if_async_query<Signature>& interface_query, void(SubclassType::*memfun)(ArgumentTypes...), executor_ptr executor_override = nullptr) {
+  template<typename R, typename... ArgumentTypes>
+  void publish_async_query(if_async_query<R(ArgumentTypes...)>& interface_query, void(SubclassType::*memfun)(ArgumentTypes..., mc::callback_result<R>&&), executor_ptr executor_override = nullptr) {
     std::weak_ptr<executor> chosen_executor = executor_override ? executor_override : default_executor;
 
-    interface_query.publish([this, memfun] (ArgumentTypes&&... arguments) {
-      (static_cast<SubclassType*>(this)->*memfun)(std::forward<ArgumentTypes>(arguments)...);
+    interface_query.publish([this, memfun] (ArgumentTypes&&... arguments, mc::callback_result<R>&& resolver) {
+      (static_cast<SubclassType*>(this)->*memfun)(std::forward<ArgumentTypes>(arguments)..., std::move(resolver));
     }, shared_from_this(), std::move(chosen_executor));
   }
 
   /// Publish a minicoros member function as an interface async query
-  template<typename Signature, typename... ArgumentTypes>
-  void publish_async_query(if_async_query<Signature>& interface_query, typename signature_util<Signature>::coroutine_type(SubclassType::*memfun)(ArgumentTypes...), executor_ptr executor_override = nullptr) {
+  template<typename R, typename... ArgumentTypes>
+  void publish_async_query(if_async_query<R(ArgumentTypes...)>& interface_query, typename signature_util<R(ArgumentTypes...)>::coroutine_type(SubclassType::*memfun)(ArgumentTypes...), executor_ptr executor_override = nullptr) {
     std::weak_ptr<executor> chosen_executor = executor_override ? executor_override : default_executor;
-    using return_type = typename signature_util<Signature>::return_type;
 
-    interface_query.publish([this, memfun] (ArgumentTypes&&... arguments, mc::callback_result<return_type>&& result_reporter) {
+    interface_query.publish([this, memfun] (ArgumentTypes&&... arguments, mc::callback_result<R>&& result_reporter) {
       (static_cast<SubclassType*>(this)->*memfun)(std::forward<ArgumentTypes>(arguments)...)
         .chain()
         .evaluate_into(std::move(result_reporter));
@@ -159,8 +158,8 @@ protected:
   }
 
   /// Publish a member function as an interface sync query
-  template<typename Signature, typename... ArgumentTypes>
-  void publish_sync_query(if_sync_query<Signature>& interface_query, typename signature_util<Signature>::return_type(SubclassType::*memfun)(ArgumentTypes...)) {
+  template<typename R, typename... ArgumentTypes>
+  void publish_sync_query(if_sync_query<R(ArgumentTypes...)>& interface_query, R(SubclassType::*memfun)(ArgumentTypes...)) {
     interface_query.publish([this, memfun] (ArgumentTypes&&... arguments) {
       return (static_cast<SubclassType*>(this)->*memfun)(std::forward<ArgumentTypes>(arguments)...);
     }, shared_from_this(), default_executor);
@@ -169,7 +168,7 @@ protected:
   /// Adds a handler "on top" of an existing handler. Decides whether the next
   /// handler should run or not.
   template<typename MessageType, typename CallbackType>
-  void prepend_async_query_filter(CallbackType&& handler) {
+  void prepend_async_query_filter(CallbackType handler) {
     const message_id msg_id = get_message_id<MessageType>();
     using async_wrapper_type = typename query_info<MessageType>::async_handler_wrapper_type;
     using async_handler_type = typename query_info<MessageType>::async_handler_type;
@@ -195,7 +194,7 @@ protected:
   /// Adds a handler "on top" of an existing handler. Decides whether the next
   /// handler should run or not.
   template<typename Signature, typename CallbackType>
-  void prepend_async_query_filter(if_async_query<Signature>& interface_query, CallbackType&& handler) {
+  void prepend_async_query_filter(if_async_query<Signature>& interface_query, CallbackType handler) {
     interface_query.prepend_filter(std::forward<CallbackType>(handler));
 
     // Existing references will have to be updated since we've updated the handler pointer. We need to invalidate
@@ -208,7 +207,7 @@ protected:
 
   /// Publishes a callable as an event listener for asynchronous events.
   template<typename MessageType, typename CallbackType>
-  void subscribe_event(CallbackType&& handler) {
+  void subscribe_event(CallbackType handler) {
     const message_id msg_id = get_message_id<MessageType>();
     broker_.associate(msg_id, shared_from_this());
 

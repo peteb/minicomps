@@ -4,6 +4,8 @@
 
 #include <minicomps/component_base.h>
 #include <minicoros/coroutine.h>
+#include <minicomps/if_async_query.h>
+#include <minicomps/if_sync_query.h>
 
 #include <memory>
 
@@ -54,11 +56,11 @@ mc::coroutine<void> ignore(mc::coroutine<T>&& coro) {
 }
 
 template<typename CallbackType>
-auto async(CallbackType&& callback) -> decltype(callback()) {
+auto async(CallbackType callback) -> decltype(callback()) {
   using coro_type = decltype(callback());
   using return_type = typename coro_type::type;
 
-  return coro_type([callback = std::forward<CallbackType>(callback)] (mc::promise<return_type>&& p) {
+  return coro_type([callback = std::move(callback)] (mc::promise<return_type>&& p) {
     callback()
       .chain()
       .evaluate_into([p = std::move(p)](mc::concrete_result<return_type>&& result) {
@@ -118,11 +120,11 @@ query_proxy<R> intercept(mc::if_async_query<R(Args...)>& func) {
   return proxy;
 }
 
-template<typename FilterType, typename R, typename... Args>
-query_proxy<R> intercept(mc::if_async_query<R(Args...)>& func, FilterType&& filter) {
+template<typename R, typename... Args, typename FilterType>
+query_proxy<R> intercept(mc::if_async_query<R(Args...)>& query, FilterType filter) {
   query_proxy<R> proxy;
 
-  func.prepend_filter([proxy, filter = std::move(filter)] (Args&&... arguments, mc::callback_result<R>&& result, auto next_handler) mutable {
+  query.prepend_filter([proxy, filter = std::move(filter)] (Args&&... arguments, mc::callback_result<R>&& result, auto next_handler) mutable {
     if (!filter(arguments...)) {
       next_handler(std::forward<Args>(arguments)..., std::move(result));
       return;
@@ -132,6 +134,13 @@ query_proxy<R> intercept(mc::if_async_query<R(Args...)>& func, FilterType&& filt
   });
 
   return proxy;
+}
+
+template<typename R, typename... Args, typename CallbackType>
+void intercept(mc::if_sync_query<R(Args...)>& query, CallbackType callback) {
+  query.prepend_filter([callback = std::move(callback)] (Args&&... arguments, auto next_handler) mutable {
+    return callback(std::forward<Args>(arguments)...);
+  });
 }
 
 class test_fixture {

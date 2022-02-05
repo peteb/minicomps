@@ -84,7 +84,31 @@ TEST_F(test_session_system, simplified_destroying_a_session_before_user_data_ret
   );
 }
 
+TEST_F(test_session_system, creating_and_destroying_session_updates_session_list) {
+  assert_success(
+    create_session()
+    .then([&] {
+      ASSERT_EQ(session_system->get_sessions("*").size(), 1);
+    })
+    .then(destroy_session())
+    .then([&] {
+      ASSERT_EQ(session_system->get_sessions("*").size(), 0);
+    })
+  );
+}
 
+TEST_F(test_session_system, sync_query_can_be_intercepted) {
+  intercept(session_system->get_sessions, [] (const std::string& pattern) {
+    return std::vector<session_system::session_info>{{}, {}};
+  });
+
+  assert_success(
+    create_session()
+    .then([&] {
+      ASSERT_EQ(session_system->get_sessions("*").size(), 2);
+    })
+  );
+}
 
 // Compile performance:
 // -g -O3:

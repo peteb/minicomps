@@ -2,9 +2,11 @@
 
 #include <minicomps/messaging.h>
 #include <minicomps/if_async_query.h>
+#include <minicomps/if_sync_query.h>
 
 #include <string>
 #include <memory>
+#include <vector>
 
 namespace mc {
 class component;
@@ -13,6 +15,11 @@ class executor;
 }
 
 namespace session_system {
+
+struct session_info {
+  int id;
+  std::string username;
+};
 
 // TODO: macro prefix
 DECLARE_EVENT(session_created, {
@@ -34,6 +41,8 @@ DECLARE_INTERFACE2(interface, {
 
   /// Starts authenticating a session
   ASYNC_QUERY(authenticate_session, void(int id, std::string username, std::string password));
+
+  SYNC_QUERY(get_sessions, std::vector<session_info>(const std::string& name_pattern));
 });
 
 ///

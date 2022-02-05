@@ -27,6 +27,7 @@ public:
     publish_async_query(if_.destroy_session, &session_system_impl::destroy_session);
     publish_async_query(if_.has_session, &session_system_impl::has_session);
     publish_async_query(if_.authenticate_session, &session_system_impl::authenticate_session);
+    publish_sync_query(if_.get_sessions, &session_system_impl::get_sessions);
   }
 
   mc::coroutine<int> create_session() {
@@ -58,6 +59,14 @@ public:
       return mc::make_failed_coroutine<void>(-1);
 
     return sess->authenticate(username, password);
+  }
+
+  std::vector<session_info> get_sessions(const std::string& pattern) {
+    std::vector<session_info> result;
+    for (const session& sess : active_sessions_)
+      result.push_back({sess.id});
+
+    return result;
   }
 
 private:

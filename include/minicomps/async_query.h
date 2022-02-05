@@ -77,7 +77,7 @@ public:
     }
 
     template<typename OuterResultType, typename CallbackType>
-    query_invoker&& with_successful_callback(OuterResultType&& outer_result, CallbackType&& callback) && {
+    query_invoker&& with_successful_callback(OuterResultType outer_result, CallbackType callback) && {
       std::move(*this).with_callback([outer_result = std::move(outer_result), callback = std::move(callback)](mc::concrete_result<return_type>&& inner_result) mutable {
         if (!inner_result.success()) {
           outer_result(std::move(*inner_result.get_failure()));
@@ -124,7 +124,7 @@ public:
 
 private:
   template<typename CallbackType, typename... ArgumentTypes>
-  void execute(CallbackType&& callback, lifetime_weak_ptr&& lifetime, std::tuple<ArgumentTypes...>&& arguments) {
+  void execute(CallbackType callback, lifetime_weak_ptr&& lifetime, std::tuple<ArgumentTypes...>&& arguments) {
     auto handler = handler_->lookup();
     auto& receiving_component = handler_->receiver();
 

@@ -20,7 +20,7 @@ public:
   executor() {}
 
   template<typename CallbackType, typename DataType>
-  void enqueue_work(CallbackType&& item, DataType&& data) {
+  void enqueue_work(CallbackType item, DataType&& data) {
     if (!mutex_.try_lock()) {
       ++num_lock_failures_;
       mutex_.lock();
