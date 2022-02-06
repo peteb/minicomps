@@ -2,6 +2,7 @@
 * Measure compilation performance
 * Build with more errors activated
 * Subscribing to events should be able to specify executor
+* Align on the "direct call" term
 
 * Async queries and events need to copy their arguments/decay
 * Macros for query declarations using "gmock" style: DECLARE_QUERY(void, MyQuery, (int param1, int param2))

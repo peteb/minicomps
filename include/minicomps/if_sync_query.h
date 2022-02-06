@@ -8,6 +8,7 @@
 #include <minicomps/interface.h>
 
 #include <functional>
+#include <type_traits>
 
 #define SYNC_QUERY(name, signature) mc::if_sync_query<signature> name{MINICOMPS_STR(name)}
 
@@ -29,6 +30,8 @@ class if_sync_query<R(ArgumentTypes...)> {
 public:
   if_sync_query(const char* name) : name_(name) {}
   if_sync_query() = default;
+
+  static_assert(!std::is_pointer_v<R> && !std::is_reference_v<R>, "Cannot return a pointer or reference from a query since that could lead to non-synchronized state access");
 
   /// Called when the client component has looked up the handler component. Used to create a
   /// local view of the handling interface.

@@ -68,7 +68,7 @@ struct dependency_info {
 ///       -
 class component {
 public:
-  component(const std::string& name, executor_ptr executor) : name(name), default_executor(executor), listener(nullptr) {}
+  component(const std::string& name, executor_ptr executor) : name(name), default_executor(executor) {}
 
   virtual ~component() = default;
   virtual void publish_dependencies() {}
@@ -79,13 +79,14 @@ public:
   virtual executor_ptr lookup_executor_override(message_id msg_id) = 0;
   virtual std::vector<dependency_info> describe_dependencies() = 0;
 
-  const std::string name;               /// Class name of the component's implementation
-  const executor_ptr default_executor;  /// Handles incoming async requests and responses
-  component_listener* listener;
+  const std::string name;                /// Class name of the component's implementation
+  const executor_ptr default_executor;   /// Handles incoming async requests and responses
   lifetime default_lifetime;
-  bool allow_direct_call_async = true;
+  component_listener* listener = nullptr;
+  bool allow_direct_call_async = true;   /// Whether components are allowed to elide enqueuing their async queries for this component
+  bool allow_locking_calls_sync = true;  /// Whether components are allowed to lock this component when calling it synchronously. If false, trying to lock will raise an error
 
-  std::recursive_mutex lock;    /// The component-level lock, used for synchronous queries across threads of execution
+  std::recursive_mutex lock;             /// The component-level lock, used for synchronous queries across threads
 };
 
 void set_current_component(component*);
