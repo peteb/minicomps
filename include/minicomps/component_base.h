@@ -17,6 +17,7 @@
 #include <minicomps/interface.h>
 #include <minicomps/if_async_query.h>
 #include <minicomps/if_sync_query.h>
+#include <minicomps/if_volatile_sync_query.h>
 
 #include <cstdint>
 #include <iostream>
@@ -180,6 +181,14 @@ protected:
   template<typename R, typename... ArgumentTypes>
   void publish_sync_query(if_sync_query<R(ArgumentTypes...)>& interface_query, R(SubclassType::*memfun)(ArgumentTypes...)) {
     interface_query.publish([this, memfun] (ArgumentTypes&&... arguments) {
+      return (static_cast<SubclassType*>(this)->*memfun)(std::forward<ArgumentTypes>(arguments)...);
+    }, shared_from_this(), default_executor);
+  }
+
+  /// Publish a member function as an interface volatile sync query
+  template<typename R, typename... ArgumentTypes>
+  void publish_volatile_sync_query(if_volatile_sync_query<R(ArgumentTypes...)>& interface_query, R(SubclassType::*memfun)(ArgumentTypes...)) {
+    interface_query.publish([this, memfun] (ArgumentTypes&&... arguments) -> R {
       return (static_cast<SubclassType*>(this)->*memfun)(std::forward<ArgumentTypes>(arguments)...);
     }, shared_from_this(), default_executor);
   }

@@ -22,12 +22,14 @@ public:
     {}
 
   virtual void publish() override {
+    // TODO: rename to just "publish"?
     publish_interface(if_);
     publish_async_query(if_.create_session, &session_system_impl::create_session);
     publish_async_query(if_.destroy_session, &session_system_impl::destroy_session);
     publish_async_query(if_.has_session, &session_system_impl::has_session);
     publish_async_query(if_.authenticate_session, &session_system_impl::authenticate_session);
     publish_sync_query(if_.get_sessions, &session_system_impl::get_sessions);
+    publish_volatile_sync_query(if_.get_sessions_ref, &session_system_impl::get_sessions_ref);
   }
 
   mc::coroutine<int> create_session() {
@@ -67,6 +69,16 @@ public:
 
     return result;
   }
+
+  std::vector<session_info>& get_sessions_ref(const std::string& pattern) {
+    static std::vector<session_info> result;
+    result.clear();
+    for (const session& sess : active_sessions_)
+      result.push_back({sess.id});
+
+    return result;
+  }
+
 
 private:
   session* find_session(int id) {

@@ -110,6 +110,12 @@ TEST_F(test_session_system, sync_query_can_be_intercepted) {
   );
 }
 
+TEST_F(test_session_system, volatile_sync_query) {
+  bool has_sessions = session_system->get_sessions_ref.call_locking("*", [] (std::vector<session_system::session_info>& sessions) {
+    return sessions.empty();
+  });
+}
+
 // Compile performance:
 // -g -O3:
 //   ~15.3s for repeating the "simplified_destroying_a_session..." test case 32 times together with a session_system that has 28 functions. 15.5s if I add 30 functions to user_system

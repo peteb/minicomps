@@ -3,6 +3,7 @@
 #include <minicomps/messaging.h>
 #include <minicomps/if_async_query.h>
 #include <minicomps/if_sync_query.h>
+#include <minicomps/if_volatile_sync_query.h>
 
 #include <string>
 #include <memory>
@@ -43,6 +44,9 @@ DECLARE_INTERFACE2(interface, {
   ASYNC_QUERY(authenticate_session, void(int id, std::string username, std::string password));
 
   SYNC_QUERY(get_sessions, std::vector<session_info>(const std::string& name_pattern));
+
+  /// Get a reference to the list of sessions without creating copies
+  VOLATILE_SYNC_QUERY(get_sessions_ref, std::vector<session_info>&(const std::string& name_pattern));
 });
 
 ///
@@ -52,5 +56,5 @@ std::shared_ptr<mc::component> create_impl(mc::broker& broker, std::shared_ptr<m
 
 }
 
-// TODO: INTERFACE rather than INTERFACE2
-// TODO: INTERFACE rather than DECLARE_INTERFACE
+// TODO: MC_INTERFACE rather than INTERFACE2
+// TODO: MC_INTERFACE rather than DECLARE_INTERFACE

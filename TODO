@@ -16,6 +16,7 @@
 * Go through examples and fix them up after latest changes
 * Easy way to lock the component due to outside callbacks
 * Add "try_execute"
+* users of (volatile) sync queries should declare up-front at startup-down how they want to call the query (same thread vs locking etc)
 
 * Interface support for events (not sure if needed)
 * Support for communication policies

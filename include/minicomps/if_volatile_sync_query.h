@@ -1,7 +1,7 @@
 /// Copyright 2022 Peter Backman
 
-#ifndef MINICOMPS_IF_SYNC_QUERY_H_
-#define MINICOMPS_IF_SYNC_QUERY_H_
+#ifndef MINICOMPS_IF_VOLATILE_SYNC_QUERY_H_
+#define MINICOMPS_IF_VOLATILE_SYNC_QUERY_H_
 
 #include <minicomps/messaging.h>
 #include <minicomps/component.h>
@@ -10,32 +10,25 @@
 #include <functional>
 #include <type_traits>
 
-#define SYNC_QUERY(name, signature) mc::if_sync_query<signature> name{MINICOMPS_STR(name)}
+#define VOLATILE_SYNC_QUERY(name, signature) mc::if_volatile_sync_query<signature> name{MINICOMPS_STR(name)}
 
 namespace mc {
 
 template<typename Signature>
-class if_sync_query;
+class if_volatile_sync_query;
 
-/// Represents either:
-///   * the actual handling code in the target component
-///   * or a proxy to another if_sync_query (which holds the actual code)
-///
-/// The reason for why they're the same class is that it optimizes for syntax and less typing for the user.
 template<typename R, typename... ArgumentTypes>
-class if_sync_query<R(ArgumentTypes...)> {
+class if_volatile_sync_query<R(ArgumentTypes...)> {
   using Signature = R(ArgumentTypes...);
-  using return_type = typename signature_util<Signature>::return_type;
+  using return_type = R; //typename signature_util<Signature>::return_type;
 
 public:
-  if_sync_query(const char* name) : name_(name) {}
-  if_sync_query() = default;
-
-  static_assert(!std::is_pointer_v<R> && !std::is_reference_v<R>, "Cannot return a pointer or reference from a query since that could lead to non-synchronized state access");
+  if_volatile_sync_query(const char* name) : name_(name) {}
+  if_volatile_sync_query() = default;
 
   /// Called when the client component has looked up the handler component. Used to create a
   /// local view of the handling interface.
-  if_sync_query(if_sync_query& other) {
+  if_volatile_sync_query(if_volatile_sync_query& other) {
     linked_query_ = &other;
 
     if (!linked_query_->handler_) {
@@ -59,7 +52,48 @@ public:
     mutual_executor_ = linked_executor_ == sending_component_->default_executor.get();
   }
 
-  return_type operator() (ArgumentTypes&&... arguments) {
+  return_type call_same_thread(ArgumentTypes&&... arguments) {
+    if (!linked_query_)
+      std::abort();
+
+    if (!linked_query_->handler_)
+      std::abort();
+
+    class listener_invoker {
+    public:
+      listener_invoker(component_listener* listener, component* sender, component* receiver, const message_info& msg_info, message_type msg_type)
+        : listener_(listener), sender_(sender), receiver_(receiver), msg_info_(msg_info), msg_type_(msg_type) {}
+
+      ~listener_invoker() {
+        if (listener_)
+          listener_->on_invoke(sender_, receiver_, msg_info_, msg_type_);
+      }
+
+    private:
+      component_listener* listener_;
+      component* sender_;
+      component* receiver_;
+      const message_info& msg_info_;
+      message_type msg_type_;
+    };
+
+    component_listener* listener = linked_handling_component_->listener;
+
+    if (!mutual_executor_) {
+      std::cerr << "trying to same-thread call a volatile sync query but it's on a different thread" << std::endl;
+      std::abort();
+      return;
+    }
+
+    if (listener)
+      listener->on_invoke(sending_component_, linked_handling_component_, msg_info_, message_type::REQUEST);
+
+    listener_invoker invoker(listener, linked_handling_component_, sending_component_, msg_info_, message_type::RESPONSE);
+    return linked_query_->handler_(std::forward<ArgumentTypes>(arguments)...);
+  }
+
+  template<typename ResultHandler>
+  auto call_locking(ArgumentTypes&&... arguments, ResultHandler result_handler) {
     if (!linked_query_)
       std::abort();
 
@@ -92,7 +126,7 @@ public:
 
       // We can skip the lock since the same executor is never updated from different threads
       listener_invoker invoker(listener, linked_handling_component_, sending_component_, msg_info_, message_type::RESPONSE);
-      return linked_query_->handler_(std::forward<ArgumentTypes>(arguments)...);
+      return result_handler(linked_query_->handler_(std::forward<ArgumentTypes>(arguments)...));
     }
     else {
       if (listener)
@@ -100,9 +134,10 @@ public:
 
       listener_invoker invoker(listener, linked_handling_component_, sending_component_, msg_info_, message_type::LOCKED_RESPONSE);
       std::lock_guard<std::recursive_mutex> lg(linked_handling_component_->lock);
-      return linked_query_->handler_(std::forward<ArgumentTypes>(arguments)...);
+      return result_handler(linked_query_->handler_(std::forward<ArgumentTypes>(arguments)...));
     }
   }
+
 
   /// Called by the handling component's publish function
   template<typename CallbackType>
@@ -143,7 +178,7 @@ private:
 
   // Fields set on the client side. These can be pointers since the broker will invalidate the receiver set
   // if the target goes out of scope, and it's impossible to unregister an interface.
-  if_sync_query* linked_query_ = nullptr;
+  if_volatile_sync_query* linked_query_ = nullptr;
   component* linked_handling_component_ = nullptr;
   executor* linked_executor_ = nullptr;
   component* sending_component_ = nullptr;
@@ -153,4 +188,4 @@ private:
 
 }
 
-#endif // MINICOMPS_IF_SYNC_QUERY_H_
+#endif // MINICOMPS_IF_VOLATILE_SYNC_QUERY_H_
