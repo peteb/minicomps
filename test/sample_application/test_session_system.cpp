@@ -47,6 +47,8 @@ public:
   /// Interfaces
   mc::interface<user_system::interface> user_system = lookup_interface<user_system::interface>();
   mc::interface<session_system::interface> session_system = lookup_interface<session_system::interface>();
+  
+  //mc::interface<session_system::fake> session_fake = lookup_interface<session_system::fake>();
 
 private:
   int last_created_session_id_ = 0;

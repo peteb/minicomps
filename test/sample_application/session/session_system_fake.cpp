@@ -13,30 +13,34 @@
 namespace session_system {
 
 ///
-/// Implementation of the Session system
+/// Fake Session system
 ///
-class session_system_impl : public mc::component_base<session_system_impl, component_types::session> {
+class session_system_fake : public mc::component_base<session_system_fake, component_types::session> {
 public:
-  session_system_impl(mc::broker& broker, mc::executor_ptr executor)
-    : component_base("session_system_impl", broker, executor)
+  session_system_fake(mc::broker& broker, mc::executor_ptr executor)
+    : component_base("session_system_fake", broker, executor)
     {}
 
   virtual void publish() override {
     // TODO: rename to just "publish"?
     publish_interface(if_);
-    publish_async_query(if_.create_session, &session_system_impl::create_session);
-    publish_async_query(if_.destroy_session, &session_system_impl::destroy_session);
-    publish_async_query(if_.has_session, &session_system_impl::has_session);
-    publish_async_query(if_.authenticate_session, &session_system_impl::authenticate_session);
-    publish_sync_query(if_.get_sessions, &session_system_impl::get_sessions);
-    publish_volatile_sync_query(if_.get_sessions_ref, &session_system_impl::get_sessions_ref);
+    publish_async_query(if_.create_session, &session_system_fake::create_session);
+    publish_async_query(if_.destroy_session, &session_system_fake::destroy_session);
+    publish_async_query(if_.has_session, &session_system_fake::has_session);
+    publish_async_query(if_.authenticate_session, &session_system_fake::authenticate_session);
+    publish_sync_query(if_.get_sessions, &session_system_fake::get_sessions);
+    publish_volatile_sync_query(if_.get_sessions_ref, &session_system_fake::get_sessions_ref);
+
+    publish_interface(fake_if_);
+    publish_async_query(fake_if_.setup_basic_sessions, &session_system_fake::setup_basic_sessions);
   }
 
+  mc::coroutine<void> setup_basic_sessions() {
+    return mc::make_successful_coroutine<void>();
+  }
+  
   mc::coroutine<int> create_session() {
     const int new_session_id = next_session_id_++;
-    session new_session(new_session_id, user_system_); // TODO: remove this lookup function and instead use the copy ctor. This is better since it makes it possible to limit lifetime further in Session
-    active_sessions_.push_back(std::move(new_session));
-    event_session_created_({new_session_id});
     return mc::make_successful_coroutine<int>(new_session_id);
   }
 
@@ -59,7 +63,7 @@ public:
     if (!sess)
       return mc::make_failed_coroutine<void>(-1);
 
-    return sess->authenticate(username, password);
+    return mc::make_successful_coroutine<void>();
   }
 
   std::vector<session_info> get_sessions(const std::string& pattern) {
@@ -93,9 +97,7 @@ private:
 private:
   // External interfaces
   interface if_;
-
-  // Dependencies
-  mc::interface<user_system::interface> user_system_ = lookup_interface<user_system::interface>();
+  fake fake_if_;
 
   // Events
   mc::event<session_created> event_session_created_ = lookup_event<session_created>();
@@ -105,8 +107,8 @@ private:
   int next_session_id_ = 1;
 };
 
-std::shared_ptr<mc::component> create_impl(mc::broker& broker, std::shared_ptr<mc::executor> executor) {
-  return std::make_shared<session_system_impl>(broker, executor);
+std::shared_ptr<mc::component> create_fake(mc::broker& broker, std::shared_ptr<mc::executor> executor) {
+  return std::make_shared<session_system_fake>(broker, executor);
 }
 
 }

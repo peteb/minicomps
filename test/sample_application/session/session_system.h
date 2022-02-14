@@ -50,9 +50,19 @@ DECLARE_INTERFACE2(interface, {
 });
 
 ///
-/// Constructor functions
+/// Fake control interface
 ///
+DECLARE_INTERFACE2(fake, {
+  /// Sets up some test data
+  ASYNC_QUERY(setup_basic_sessions, void());
+});
+
+
+/// Main implementation
 std::shared_ptr<mc::component> create_impl(mc::broker& broker, std::shared_ptr<mc::executor> executor);
+
+/// Fake implementation. Implements both the interface and the fake control interface.
+std::shared_ptr<mc::component> create_fake(mc::broker& broker, std::shared_ptr<mc::executor> executor);
 
 }
 
