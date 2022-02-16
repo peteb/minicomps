@@ -5,7 +5,7 @@
 #include <minicomps/component.h>
 
 #include "user/user_system.h"
-#include "session/session_system.h"
+#include "session_system/session_system.h"
 
 #include <sstream>
 #include <unordered_map>

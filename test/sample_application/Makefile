@@ -3,8 +3,8 @@ CXXFLAGS = -std=c++17 -fno-exceptions -fvisibility-inlines-hidden -fno-rtti -fno
 
 core_files = ../../src/component.o ../../src/executor.o ../../src/broker.o ../../tools/testing.o
 
-obj_files = $(core_files) test_session_system.o user/user_system_impl.o orchestration/composition_root.o session/session_system_impl.o \
-	session/session.o component_types.o session/session_system.o session/session_system_fake.o
+obj_files = $(core_files) test_session_system.o user/user_system_impl.o orchestration/composition_root.o session_system/session_system_impl.o \
+	session_system/session.o component_types.o session_system/session_system.o session_system/session_system_fake.o
 
 %.o: %.cc
 	$(CXX) -c $(CXXFLAGS) $< -o $@
