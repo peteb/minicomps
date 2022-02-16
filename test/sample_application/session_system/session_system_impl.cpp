@@ -24,12 +24,15 @@ public:
   virtual void publish() override {
     // TODO: rename to just "publish"?
     publish_interface(if_);
-    publish_async_query(if_.create_session, &session_system_impl::create_session);
-    publish_async_query(if_.destroy_session, &session_system_impl::destroy_session);
-    publish_async_query(if_.has_session, &session_system_impl::has_session);
-    publish_async_query(if_.authenticate_session, &session_system_impl::authenticate_session);
-    publish_sync_query(if_.get_sessions, &session_system_impl::get_sessions);
-    publish_volatile_sync_query(if_.get_sessions_ref, &session_system_impl::get_sessions_ref);
+    
+    publish_async_query(if_.create_session,           &this_t::create_session);
+    publish_async_query(if_.destroy_session,          &this_t::destroy_session);
+    publish_async_query(if_.has_session,              &this_t::has_session);
+    publish_async_query(if_.authenticate_session,     &this_t::authenticate_session);
+
+    publish_sync_query(if_.get_sessions,              &this_t::get_sessions);
+
+    publish_volatile_sync_query(if_.get_sessions_ref, &this_t::get_sessions_ref);
   }
 
   mc::coroutine<int> create_session() {

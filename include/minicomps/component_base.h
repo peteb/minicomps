@@ -8,10 +8,7 @@
 #include <minicomps/messaging.h>
 #include <minicomps/broker.h>
 #include <minicomps/executor.h>
-#include <minicomps/sync_query.h>
-#include <minicomps/async_query.h>
 #include <minicomps/event.h>
-#include <minicomps/mono_ref.h>
 #include <minicomps/poly_ref.h>
 #include <minicomps/interface_ref.h>
 #include <minicomps/interface.h>
@@ -48,6 +45,8 @@ protected:
     }
   }
 
+  using this_t = SubclassType;
+  
   virtual void publish() {}
 
 public:
@@ -71,11 +70,6 @@ public:
   virtual std::vector<dependency_info> describe_dependencies() override {
     std::vector<dependency_info> infos;
 
-    for (auto& mono : mono_refs_) {
-      mono->force_resolve();
-      infos.push_back(mono->create_dependency_info());
-    }
-
     for (auto& poly : poly_refs_) {
       poly->force_resolve();
       infos.push_back(poly->create_dependency_info());
@@ -94,47 +88,6 @@ public:
   }
 
 protected:
-  /// Publishes a callable as a synchronous query
-  template<typename MessageType, typename CallbackType>
-  void publish_sync_query(CallbackType handler) {
-    const message_id msg_id = get_message_id<MessageType>();
-    broker_.associate(msg_id, shared_from_this());
-
-    using wrapper_type = typename query_info<MessageType>::handler_wrapper_type;
-    sync_handlers_[msg_id] = std::make_shared<wrapper_type>(std::move(handler));
-    // TODO: remove from queryHandlers
-    published_dependencies_.push_back({dependency_info::EXPORT, dependency_info::SYNC_MONO, get_message_info<MessageType>(), {}});
-  }
-
-  /// Publishes a member function as a synchronous query
-  template<typename MessageType, typename ReturnType, typename... ArgumentTypes>
-  void publish_sync_query(ReturnType(SubclassType::*memfun)(ArgumentTypes...)) {
-    publish_sync_query<MessageType>([this, memfun] (ArgumentTypes&&... arguments) {
-      return (static_cast<SubclassType*>(this)->*memfun)(arguments...);
-    });
-  }
-
-  /// Publishes a callable as an asynchronous query
-  template<typename MessageType, typename CallbackType>
-  void publish_async_query(CallbackType handler, executor_ptr executor_override = nullptr) {
-    const message_id msg_id = get_message_id<MessageType>();
-    broker_.associate(msg_id, shared_from_this());
-
-    using async_wrapper_type = typename query_info<MessageType>::async_handler_wrapper_type;
-    async_handlers_[msg_id] = std::make_shared<async_wrapper_type>(std::move(handler));
-    async_executor_overrides_[msg_id] = executor_override;
-    // TODO: remove from queryHandlers
-    published_dependencies_.push_back({dependency_info::EXPORT, dependency_info::ASYNC_MONO, get_message_info<MessageType>(), {}});
-  }
-
-  /// Publishes a member function as an asynchronous query
-  template<typename MessageType, typename... ArgumentTypes>
-  void publish_async_query(void(SubclassType::*memfun)(ArgumentTypes...), executor_ptr executor_override = nullptr) {
-    publish_async_query<MessageType>([this, memfun] (ArgumentTypes&&... arguments) {
-      (static_cast<SubclassType*>(this)->*memfun)(std::forward<ArgumentTypes>(arguments)...);
-    }, std::move(executor_override));
-  }
-
   template<typename InterfaceType>
   void publish_interface(InterfaceType& impl) {
     const message_id msg_id = get_message_id<InterfaceType>();
@@ -150,6 +103,7 @@ protected:
 
       // Creating a copy of the interface copies all of the queries, which verifies that they've been implemented
       InterfaceType interface_view = impl;
+
       set_current_lifetime({});
       set_current_component(nullptr);
     });
@@ -195,32 +149,6 @@ protected:
 
   /// Adds a handler "on top" of an existing handler. Decides whether the next
   /// handler should run or not.
-  template<typename MessageType, typename CallbackType>
-  void prepend_async_query_filter(CallbackType handler) {
-    const message_id msg_id = get_message_id<MessageType>();
-    using async_wrapper_type = typename query_info<MessageType>::async_handler_wrapper_type;
-    using async_handler_type = typename query_info<MessageType>::async_handler_type;
-
-    if (async_handlers_.find(msg_id) == std::end(async_handlers_))
-      std::abort();
-
-    auto previous_handler = std::move(async_handlers_[msg_id]);
-
-    async_handlers_[msg_id] = std::make_shared<async_wrapper_type>([handler = std::move(handler), previous_handler = std::move(previous_handler)] (auto&&... args) mutable {
-      bool proceed = true;
-      handler(proceed, std::move(args)...); // TODO: we can't move both here and in the proceed phase
-      if (proceed)
-        (*static_cast<async_handler_type*>(previous_handler->get_handler_ptr()))(std::move(args)...);
-    });
-
-    // Existing references will have to be updated since we've updated the handler pointer
-    broker_.invalidate(msg_id);
-
-    // TODO: remove from queryHandlers
-  }
-
-  /// Adds a handler "on top" of an existing handler. Decides whether the next
-  /// handler should run or not.
   template<typename Signature, typename CallbackType>
   void prepend_async_query_filter(if_async_query<Signature>& interface_query, CallbackType handler) {
     interface_query.prepend_filter(std::forward<CallbackType>(handler));
@@ -254,20 +182,6 @@ protected:
   }
 
   template<typename MessageType>
-  sync_query<MessageType> lookup_sync_query() {
-    auto handler_ref = std::make_shared<sync_mono_ref<MessageType>>(broker_, *this);
-    mono_refs_.push_back(handler_ref);
-    return sync_query<MessageType>(handler_ref.get(), this);
-  };
-
-  template<typename MessageType>
-  async_query<MessageType> lookup_async_query() {
-    auto handler_ref = std::make_shared<async_mono_ref<MessageType>>(broker_, *this);
-    mono_refs_.push_back(handler_ref);
-    return async_query<MessageType>(handler_ref.get(), this);
-  };
-
-  template<typename MessageType>
   event<MessageType> lookup_event() {
     auto handler_ref = std::make_shared<poly_ref_base<MessageType>>(broker_, *this);
     poly_refs_.push_back(handler_ref);
@@ -288,16 +202,6 @@ protected:
 
     interface_refs_.push_back(interface_ref);
     return interface<InterfaceType>(interface_ref.get());
-  }
-
-  virtual void* lookup_sync_handler(message_id msg_id) override {
-    std::lock_guard<std::recursive_mutex> lg(lock);
-
-    auto iter = sync_handlers_.find(msg_id);
-    if (iter == std::end(sync_handlers_))
-      return nullptr;
-
-    return iter->second->get_handler_ptr();
   }
 
   virtual void* lookup_async_handler(message_id msg_id) override {
@@ -336,13 +240,11 @@ protected:
 
 private:
   broker& broker_;
-  std::unordered_map<message_id, std::shared_ptr<message_handler>> sync_handlers_;
   std::unordered_map<message_id, std::shared_ptr<message_handler>> async_handlers_;
   std::unordered_map<message_id, void*> interfaces_;
   std::unordered_map<message_id, executor_ptr> async_executor_overrides_;
 
-  std::vector<std::shared_ptr<mono_ref>> mono_refs_; // Reset shared_ptrs in mono_refs to avoid memory leaks at shutdown
-  std::vector<std::shared_ptr<poly_ref>> poly_refs_; // ... and in poly_refs TODO: common base class
+  std::vector<std::shared_ptr<poly_ref>> poly_refs_; // Reset shared_ptrs in poly_refs to avoid memory leaks at shutdown
   std::vector<std::shared_ptr<interface_ref>> interface_refs_;
   std::vector<std::function<void()>> post_publish_checks_;
 

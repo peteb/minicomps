@@ -18,76 +18,6 @@
 - Periodical pumping and async operations can be skipped if the handling component has been synchronously locked (TODO)
 
 ## Examples
-```cpp
-// Queries, like ordinary functions, have two parts: a declaration and a definition.
-// This separation makes it possible to call queries across shared libraries.
-DECLARE_QUERY(Sum, int(int t1, int t2)); DEFINE_QUERY(Sum);
-DECLARE_QUERY(UpdateValues, int(int new_value)); DEFINE_QUERY(UpdateValues);
-DECLARE_EVENT(UserUpdated, {int user_id; }); DEFINE_EVENT(UserUpdated);
-
-class receiver : public component_base<receiver> {
-public:
-  receiver(broker& broker, executor_ptr executor)
-    : component_base("receiver", broker, executor)
-    {}
-
-  virtual void publish() override {
-    // Async queries are functions that get passed a callback and can return later
-    publish_async_query<Sum>(&receiver::sum);
-
-    // Sync queries are direct invocation and lock the target component
-    publish_sync_query<UpdateValues>(&receiver::update_values);
-
-    // Events are structs that are sent out 1:n
-    subscribe_event<UserUpdated>(&receiver::on_user_updated);
-  }
-
-  int sum(int t1, int t2, mc::callback_result<int>&& result) {
-    // Callbacks can fail or return successfully
-    result(t1 + t2);
-  }
-
-  int update_values(int new_value) {
-    value1 = new_value;
-    value2 = new_value;
-    return value1 - value2;
-  }
-
-  void on_user_updated(const UserUpdated& info) {
-    // ...
-  }
-
-private:
-  int value1 = 0;
-  int value2 = 0;
-};
-
-class sender : public component_base<sender> {
-public:
-  sender(broker& broker, executor_ptr executor)
-    : component_base("sender", broker, executor)
-    , sum_(lookup_async_query<Sum>())
-    , update_values_(lookup_sync_query<UpdateValues>())
-    {}
-
-  void frob() {
-    // Call the async query first
-    sum_(1, 3).with_callback([this](mc::concrete_result<int> cr) {
-      if (cr.successful()) {
-        int sum = *cr.get_value();
-
-        // Then update synchronously
-        update_values_(sum);
-      }
-    });
-  }
-
-private:
-  async_query<Sum> sum_;
-  sync_query<UpdateValues> update_values_;
-};
-```
-
 ### Interfaces
 ```cpp
 DECLARE_INTERFACE(receiver); DEFINE_INTERFACE(receiver);
@@ -108,7 +38,7 @@ public:
     publish_async_query(receiver_.frobnicate, &receiver_component_impl::frobnicate_impl);
   }
 
-  void frobnicate_impl(int value, callback_result<void>&& result) {
+  void frobnicate_impl(callback_result<void>&& result, int value) {
     // ...
   }
 
@@ -121,7 +51,6 @@ class sender_component_impl : public component_base<sender_component_impl> {
 public:
   sender_component_impl(broker& broker, executor_ptr executor)
     : component_base("sender_component", broker, executor)
-    , receiver_(lookup_interface<receiver>())
   {}
 
   void frob() {
@@ -132,36 +61,7 @@ public:
   }
 
 private:
-  interface<receiver> receiver_;
-};
-```
-
-### Namespaced queries
-```cpp
-namespace math {
-DECLARE_QUERY(Sum, int(int t1, int t2)); DEFINE_QUERY(Sum);
-}
-
-namespace output {
-DECLARE_QUERY(PrintValue, void(int)); DEFINE_QUERY(Sum);
-}
-
-class calculator : public component_base<calculator> {
-public:
-  calculator(broker& broker, executor_ptr executor)
-    : component_base("calculator", broker, executor)
-    , print_value_(lookup_async_query(output::PrintValue))
-    {}
-
-  virtual void publish() override {
-    publish_async_query<math::Sum>([this](int t1, int t2, mc::callback_result<int>&& result) {
-      print_value_(t1 + t2);
-      result(t1 + t2);
-    });
-  }
-
-private:
-  async_query<output::PrintValue> print_value_;
+  interface<receiver> receiver_ = lookup_interface<receiver>();
 };
 ```
 
@@ -176,7 +76,6 @@ class address_book : public component_base<address_book> {
 public:
   address_book(broker& broker, executor_ptr executor)
     : component_base("address_book", broker, executor)
-    , contact_updated_(lookup_async_event(ContactUpdated))
     {}
 
   void update_contact(int contactId) {
@@ -185,7 +84,7 @@ public:
   }
 
 private:
-  async_event<ContactUpdated> contact_updated_;
+  async_event<ContactUpdated> contact_updated_ = lookup_async_event<ContactUpdated>();
 };
 
 class interested_party : public component_base<interested_party> {
@@ -195,15 +94,18 @@ public:
     {}
 
   virtual void publish() override {
-    subscribe_event<ContactUpdated>([this](const ContactUpdated& event) {
-      std::cout << "Contact " << event.contactId << " updated" << std::endl;
-    });
+    subscribe_event<ContactUpdated>(&interested_party::onContactUpdated);
+  }
+
+  void onContactUpdated(const ContactUpdated& event) {
+    std::cout << "Contact " << event.contactId << " updated" << std::endl;
   }
 };
 ```
 
 ### Cancellation
 ```c++
+// NOTE: old query style. Should use interfaces.
 DECLARE_QUERY(LongOperation, int()); DEFINE_QUERY(LongOperation);
 
 class receiver : public component_base<receiver> {
@@ -251,6 +153,7 @@ private:
 
 ### Coroutines and Sessions
 ```c++
+// NOTE: old query style, should use interfaces
 DECLARE_QUERY(LongOperation, int(int));
 
 class send_component : public component_base<send_component> {
@@ -285,6 +188,7 @@ public:
 
 ### Flow control
 ```c++
+// NOTE: old query style, should use interfaces
 DECLARE_QUERY(LongOperation, int()); DEFINE_QUERY(LongOperation);
 
 class receiver : public component_base<receiver> {
@@ -322,6 +226,8 @@ private:
 
 ## Performance
 As measured on my MacBook Pro from 2013 through Docker. Might not be up-to-date, but shows ballpark figures.
+
+NOTE: these are the "old" async/sync queries. TODO: measure the interface ones
 
 | Operation                                                 | Rate       | Allocs/q     | Lock fails/q        |
 |-----------------------------------------------------------|-----------:|--------------|--------------------:|

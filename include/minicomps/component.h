@@ -40,8 +40,6 @@ struct dependency_info {
   } direction;
 
   enum {
-    ASYNC_MONO,
-    SYNC_MONO,
     ASYNC_POLY,
     INTERFACE,
     GROUP
@@ -52,28 +50,15 @@ struct dependency_info {
   std::vector<component*> resolved_targets;
 };
 
-/// Components talk to other components by sending messages through a Broker.
-/// A component follows this lifecycle:
-///   1. construction (constructor gets called)
-///       - Inject object dependencies at this time
-///       - Other components might not exist
-///   2. linking (onLink function gets called)
-///       - All other components exist at this point and have been constructed
-///       - This is where you can save references to other components
-///       - Publish queries and events
-///   3. unlinking (onUnlink)
-///       - Hard references to other components must be reset here to avoid memory leaks when shutting down
-///       - Queries and events are unpublished here
-///   4. destruction (destructor)
-///       -
+///
 class component {
 public:
   component(const std::string& name, executor_ptr executor) : name(name), default_executor(executor) {}
-
   virtual ~component() = default;
+
   virtual void publish_dependencies() {}
   virtual void unpublish_dependencies() {}
-  virtual void* lookup_sync_handler(message_id msg_id) = 0;
+
   virtual void* lookup_async_handler(message_id msg_id) = 0;
   virtual void* lookup_interface(message_id msg_id) = 0;
   virtual executor_ptr lookup_executor_override(message_id msg_id) = 0;
